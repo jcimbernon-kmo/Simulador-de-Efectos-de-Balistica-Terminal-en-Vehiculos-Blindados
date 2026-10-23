@@ -1,6 +1,6 @@
 ---
 name: tfg
-description: "TFG de Fata — simulador de perforación de blindaje de vehículos de combate de la WW2. Decisiones tomadas, arquitectura, convenciones de modelado y pendientes. Actualizado 2026-10-21."
+description: "TFG de Fata — simulador de perforación de blindaje de vehículos de combate de la WW2. Decisiones tomadas, arquitectura, convenciones de modelado, orden de trabajo y pendientes. Actualizado 2026-10-22."
 ---
 
 # TFG — Simulador de perforación de blindaje (WW2)
@@ -56,6 +56,8 @@ Consecuencias:
 - **Varias capas consumen penetración progresivamente** (orugas, faldones, blindaje espaciado), con velocidad residual entre capa y capa.
 - `Thickness_mm` se conserva: valida que la geometría coincide, sirve para la relación espesor/calibre en la fragmentación, y de respaldo.
 
+> El modelo de cálculo completo (flujo del disparo, APHE, HEAT, fragmentación, parámetros libres, validación y limitaciones) está en **`docs/modelo_balistico.md`**. Lo de aquí abajo es el resumen.
+
 ### 3.4 Penetración, rebote y resultados
 
 - La penetración sale de **tablas históricas** (proyectil, mm atravesados, ángulo, distancia, tipo de blindaje). Criterio de las tablas: **perforación completa**.
@@ -71,26 +73,51 @@ Consecuencias:
 - A mano, en Blender. Primer vehículo: **Pz IV H**.
 - Un archivo por vehículo, con muchos objetos dentro (nunca unir placas con Ctrl+J: se perderían las propiedades).
 - Propiedades por placa, en el **objeto** (no en la malla ni en el material), con estos nombres exactos: `Thickness_mm` (decimal) y `Armour_Material` (texto).
+- Propiedades por módulo interno: `Module_Type` (texto: `crew`, `engine`, `transmission`, `ammo`), `Health` (**float**) y `Armour_Material` (misma tabla que las placas, con entradas añadidas tipo `flesh`, `cast_iron`, `propellant`). Los módulos **no** llevan propiedad de espesor: lo da la geometría.
+- **Juntas:** cada junta se cierra con dos puntos, el corte de las dos caras exteriores y el de las dos interiores. Las dos placas llevan ahí los vértices de ese extremo. Como los puntos caen sobre las rectas de las caras existentes, ninguna cara gira y los espesores no cambian.
+- **Laterales por dentro:** su contorno es el perfil **interior**, su cara exterior queda en el plano de ancho máximo y crecen hacia dentro. Las demás placas no se estrechan; sus cantos quedan a la vista en el costado.
 - Escena en metros, escala 1:1, escala aplicada (Ctrl+A) en cada objeto.
 - Normales hacia fuera.
 - **El morro apunta a −Y.**
 - Formato de intercambio: **`.glb`**. Es lo que lee el simulador y lo que se revisa.
 
-## 4. Estado del modelado (2026-10-21)
+### 3.6 Orden de trabajo *(decidido 2026-10-22)*
 
-Archivo `Pz IV H.blend` / `Pz IV H.glb` en `C:\Users\Juan Carlos\Documents\L1U`.
+1. Terminar la estructura principal del casco, sin torreta.
+2. **Prueba de extremo a extremo (vertical slice), antes de modelar el interior completo.** Con las placas que ya existen y un módulo interno de prueba: cargar el `.glb`, lanzar un rayo, leer las propiedades, medir la longitud de camino e imprimir el resultado. Sin gráficos y sin interfaz.
+   - Motivo: modelar todo antes de programar es cascada. Si la cadena Blender → `.glb` → cálculo no encaja como se supone, hay que descubrirlo con 10 placas, no con 50.
+   - La prueba también fija cómo se llaman las propiedades de los módulos, que es la interfaz entre Blender y el código.
+   - **Se hará en Python puro, sin motor.** Leer el `.glb` y trazar rayos no necesita motor, así que no bloquea la elección de tecnología y vale igual decida lo que decida el tutor. Además queda como implementación de referencia contra la que contrastar después la versión del motor, y como base del script de validación.
+3. Modelar el interior: unas diez cajas (motor, transmisión, munición, tripulantes), no un modelo detallado.
+4. Resto del desarrollo según el calendario de 5.5.
 
-Tres placas frontales, las tres de RHA y 1825 mm de ancho en su base:
+En paralelo con el modelado, sin esperar a programar: resolver las dos preguntas sobre las tablas (nominal o línea de visión, y convención de ángulo). Condicionan el núcleo balístico entero y solo requieren leer las tablas.
 
-| Placa | Espesor | Inclinación vs vertical | Notas |
-|---|---|---|---|
-| `Lower_Front_Plate` | 80 mm | 14° | |
-| `Middle_Front_Plate` | 20 mm | 72° | plancha casi horizontal del morro |
-| `Upper_Front_Plate` | 80 mm | 10° | trapecio isósceles: 1825 mm abajo, 1855 mm arriba |
+## 4. Estado (2026-10-22)
 
-Verificado: espesores geométricos coinciden con las propiedades (79,99 / 19,98 / 79,98 mm), normales hacia fuera, superficie exterior cerrada sin huecos, y 2 vértices compartidos en cada junta.
+Repositorio Git creado y subido a GitHub, con estructura `docs/ data/ models/ tools/ src/`. Trabajo local en `C:\Users\Juan Carlos\Documents\L1U`.
 
-**Pendiente:** cerrar las cuñas interiores de las dos juntas.
+Modelo reconstruido desde cero el 21/10 tras detectar errores de lectura de los planos. Perfil del casco (sin torreta) cerrado, con nueve placas:
+
+| Placa | Espesor |
+|---|---|
+| `Floor_Plate` | 10 mm |
+| `Front_Floor_Plate` | 30 mm |
+| `Lower_Front_Plate` | 80 mm |
+| `Middle_Front_Plate` | 20 mm |
+| `Upper_Front_Plate` | 80 mm |
+| `Front_Top_Plate` | 11 mm |
+| `Top_Plate` | 11 mm |
+| `Upper_Back_Plate` | 20 mm |
+| `Lower_Back_Plate` | 20 mm |
+
+Más los laterales `ARM_hull_side_L` / `ARM_hull_side_R`, de 30 mm, generados por script a partir del contorno interior de seis vértices.
+
+- Ancho exterior del casco inferior: **1854 mm** (X = ±0,927). El trapecio de la placa superior se descartó para simplificar.
+- Todas las placas: caras paralelas y espesor geométrico coincidente con su propiedad dentro de 0,05 mm. Tolerancia recomendada para el validador: 0,5 mm.
+- Verificado con barridos de rayos: superficie exterior cerrada, sin huecos.
+
+**Pendiente en el modelo:** cerrar la junta `Lower_Front_Plate` → `Middle_Front_Plate` (exterior −0,64882 / +1,61881; interior −0,56871 / +1,62669). El punto 3 del contorno de los laterales depende de ella.
 
 ## 5. Recomendaciones de Claude (pendientes de confirmar)
 
@@ -137,14 +164,18 @@ Verificado: espesores geométricos coinciden con las propiedades (79,99 / 19,98 
 
 ## 6. Pendientes y preguntas abiertas
 
-- [ ] Confirmar con el tutor que el simulador se acepta como propuesta propia, y revisar el plazo de presentación.
-- [ ] Elegir motor (recomendado Unity).
+- [ ] **Hablar con el tutor.** Sigue sin hacerse a 22/10/2026. Es el riesgo que invalida todo lo demás: confirmar que el simulador se acepta como propuesta propia y revisar el plazo de presentación.
+- [ ] Elegir motor (recomendado Unity). **Abierto**: no se decide hasta hablar con el tutor. La prueba de extremo a extremo se hace en Python puro para no depender de ello.
+- [ ] Decidir si la torreta tendrá rotación independiente. Si la tiene, debe ser un objeto hijo con su propia transformación, y eso condiciona cómo se organiza el archivo. Rehacerlo después cuesta.
 - [ ] Verificar si las tablas dan espesor nominal o en línea de visión.
 - [ ] Verificar la convención de ángulo de las tablas (desde la normal o desde la superficie).
 - [ ] Comprobar si las tablas incluyen datos de rebote o solo llegan hasta cierto ángulo; lo que haya por encima es decisión propia y debe documentarse.
 - [ ] Definir los coeficientes de RHA, Steel y Track, con su fuente.
-- [ ] Cerrar las cuñas interiores de las dos juntas frontales del Pz IV H.
+- [ ] Cerrar la junta `Lower_Front_Plate` → `Middle_Front_Plate`.
 - [ ] Renombrar las placas con los prefijos `ARM_`.
+- [ ] Sacar el objeto `Template` de la colección que se exporta: viaja en el `.glb` con `Thickness_mm` y `Armour_Material`, y el simulador lo leería como una placa de dos metros en el origen.
+- [ ] Añadir `.gitignore` (`*.blend1`, `*.blend2`, `__pycache__/`) y, al llegar Unity, el `.gitignore` oficial de Unity.
+- [ ] Quitar los espacios de los nombres de archivo (`Pz IV H.blend` → `Pz_IV_H.blend`) y renombrar la imagen de referencia de `models/`.
 - [ ] Escribir el script de validación de `.glb` (propiedades, normales, nombres, espesor, huecos y solapes) y, más adelante, un script de Blender que ingletee las juntas automáticamente.
 - [ ] Comprobar en los planos el ancho de la superestructura: 1825 mm encaja con la cuba del casco, pero el Pz IV H mide unos 2880 mm de ancho total y la placa del conductor pertenece a la superestructura, que vuela sobre las orugas.
 - [ ] Ir anotando las horas por placa para contrastar la estimación de modelado.

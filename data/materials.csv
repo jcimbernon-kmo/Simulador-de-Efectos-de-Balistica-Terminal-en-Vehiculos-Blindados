@@ -1,0 +1,10 @@
+id,resistance,spall
+RHA,1,
+Steel,"0,6",
+Track,"0,7",
+Flesh,"0,01",
+Cast_Iron,"0,3",
+Ammo,"0,2",
+Engine,"0,1",
+Gasoline,"0,1",
+Diesel,"0,1",
