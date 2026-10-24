@@ -1,4 +1,4 @@
-shell_id,name,type,caliber_mm,mass_kg,muzzle_velocity_ms,explosive_mass_g,fuze_delay_ms,core_mass_g
-PzGr39_75_L48,PzGr. 39 (KwK 40 L/48),APCBC,75,"6,80",750,"16,4",,
-PzGr40_75_L48,PzGr. 40 (KwK 40 L/48),APCR,75,"4,10",930,0,,"0,9"
-Gr38HlC_75_L48,Gr. 38 Hl/C,HEAT,75,"5,00",450,600,0,
+shell_id,name,type,caliber_mm,mass_kg,muzzle_velocity_ms,explosive_mass_g,fuze_delay_ms,core_mass_kg,cd
+PzGr39_75_L48,PzGr. 39 (KwK 40 L/48),APCBC,75,"6,80",750,"16,4",,,"0,415"
+PzGr40_75_L48,PzGr. 40 (KwK 40 L/48),APCR,75,"4,10",930,0,,"0,9","0,584"
+Gr38HlC_75_L48,Gr. 38 Hl/C,HEAT,75,"5,00",450,600,0,,
