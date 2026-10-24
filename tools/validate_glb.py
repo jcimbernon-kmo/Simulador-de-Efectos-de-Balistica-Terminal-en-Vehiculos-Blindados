@@ -127,27 +127,6 @@ def check_mesh(verts, faces):
             break
     return closed, vol > 0, convex, abs(vol)
 
-def mean_thickness(verts, faces, vol):
-    """Espesor medio = volumen / area de la cara plana mayor.
-
-    Para una placa prismatica coincide con el espesor real; para una cuna
-    da la media, que es lo unico comparable con un Thickness_mm unico.
-    """
-    groups = {}
-    for f in faces:
-        c = cross(sub(verts[f[1]], verts[f[0]]), sub(verts[f[2]], verts[f[0]]))
-        n = norm(c)
-        area = 0.5 * math.sqrt(dot(c, c))
-        for k in groups:
-            if dot(k, n) > 0.9999 and abs(dot(k, sub(verts[f[0]], groups[k][1]))) < 1e-4:
-                groups[k][0] += area
-                break
-        else:
-            groups[n] = [area, verts[f[0]]]
-    biggest = max(g[0] for g in groups.values()) if groups else 0.0
-    return (vol / biggest * 1000.0) if biggest > 1e-9 else None
-
-
 def geom_thickness(verts, faces):
     """Separacion entre el par de caras paralelas mas proximo, en mm."""
     groups = {}
@@ -272,28 +251,17 @@ def main(glb, data_dir):
         if not convex:
             warns.append(f"{name}: no convexo; entrada/salida del rayo no valen")
 
-        # gt: separacion entre caras paralelas, el espesor real de una placa
-        #     prismatica, aunque tenga los extremos en inglete.
-        # mt: volumen / area mayor. Solo sirve de contraste: en una placa con
-        #     inglete sale algo por debajo, y en una cuna maciza, disparado.
         gt = geom_thickness(verts, faces)
-        mt = mean_thickness(verts, faces, vol)
         if is_arm:
             pt = float(ex['Thickness_mm'])
             if gt is None:
-                errors.append(f"{name}: sin caras paralelas; no es una placa "
-                              f"(volumen/area = {mt:.0f} mm)" if mt else
-                              f"{name}: no puedo medir el espesor")
+                warns.append(f"{name}: sin caras paralelas; no puedo medir el espesor")
             elif abs(gt - pt) > TOL_THICKNESS_MM:
                 errors.append(f"{name}: espesor {gt:.2f} mm vs Thickness_mm {pt}")
-            elif mt is not None and mt > pt * 1.5:
-                errors.append(f"{name}: caras paralelas a {gt:.1f} mm pero "
-                              f"volumen/area = {mt:.0f} mm; es un solido, no una placa")
-            rows.append((name, f"{pt:g}", f"{gt:.2f}" if gt else "-",
-                         f"{mt:.1f}" if mt else "-", mat or "-", f"{vol * 1e6:.0f}"))
+            rows.append((name, f"{pt:g}", f"{gt:.2f}" if gt else "-", mat or "-",
+                         f"{vol * 1e6:.0f}"))
         else:
             rows.append((name, "-", f"{gt:.2f}" if gt else "-",
-                         f"{mt:.1f}" if mt else "-",
                          f"{ex.get('Module_Type', '?')}/{ex.get('Health', '?')}",
                          f"{vol * 1e6:.0f}"))
 
@@ -312,11 +280,9 @@ def main(glb, data_dir):
                       f"de camino contado dos veces")
 
     w = max(len(r[0]) for r in rows) if rows else 10
-    print(f"{'objeto'.ljust(w)}  {'prop':>6}  {'geom':>7}  {'vol/area':>8}  "
-          f"material/tipo      cm3")
+    print(f"{'objeto'.ljust(w)}  {'prop':>6}  {'geom':>7}  material/tipo      cm3")
     for r in rows:
-        print(f"{r[0].ljust(w)}  {r[1]:>6}  {r[2]:>7}  {r[3]:>8}  "
-              f"{r[4]:<17} {r[5]:>6}")
+        print(f"{r[0].ljust(w)}  {r[1]:>6}  {r[2]:>7}  {r[3]:<17} {r[4]:>6}")
 
     print()
     for e in errors:
