@@ -4,7 +4,7 @@ Documento de diseño del núcleo de cálculo. Define qué se simula, con qué da
 
 Convención: **[D]** decidido · **[S]** supuesto, pendiente de fuente o de verificación · **[A]** abierto, hay que decidirlo.
 
-Última revisión: 2026-10-23 (3ª).
+Última revisión: 2026-10-26 (4ª).
 
 ---
 
@@ -24,6 +24,14 @@ Convención: **[D]** decidido · **[S]** supuesto, pendiente de fuente o de veri
 
 **[D] Cálculo y reproducción separados.** El disparo se calcula entero de golpe y devuelve una línea temporal de eventos. El render la reproduce a la velocidad que sea.
 
+**[D] Todo dato vive fuera del código.** Ni una constante física, ni un umbral, ni un coeficiente escritos dentro de un `.py`. Todo sale de los ficheros de `data/` y del `.glb`. Tres razones, y la tercera es la que importa:
+
+1. Cambiar un vehículo, un proyectil o un criterio no toca el código.
+2. El análisis de sensibilidad (§6) consiste en variar esos ficheros, así que tienen que ser el único sitio donde están los números.
+3. **Varios de esos valores están sin validar y se van a tener que cambiar.** El umbral de incapacitación de §3.7.2 es el caso claro: está pendiente de consulta con el tutor, y si hay que cambiarlo tiene que ser editando una celda, no buscando por dónde andaba.
+
+Corolario para el núcleo: una capa de carga de datos que devuelve estructuras, y un cálculo que no sabe de dónde vienen. Las pruebas de §8 inyectan datos sintéticos por esa misma capa.
+
 ---
 
 ## 2. Datos de entrada
@@ -37,12 +45,14 @@ Convención: **[D]** decidido · **[S]** supuesto, pendiente de fuente o de veri
 | `type` | — | `AP`, `APCBC`, `APCR`, `APHE`, `HEAT` |
 | `caliber_mm` | mm | |
 | `mass_kg` | kg | proyectil completo |
-| `core_mass_g` | g | solo APCR: masa que de verdad penetra |
+| `core_mass_kg` | kg | solo APCR: masa que de verdad penetra |
 | `muzzle_velocity_ms` | m/s | |
 | `explosive_mass_g` | g | equivalente en TNT; 0 si no lleva |
-| `fuze_delay_ms` | ms | solo con explosivo |
-| `drag_cd` | — | coeficiente de arrastre (§2.2.1) |
-| `source` | — | de dónde sale cada fila |
+| `fuze_delay_ms` | ms | solo con explosivo (ver §4) |
+| `cd` | — | coeficiente de arrastre; **solo respaldo** si no hay fila en `velocity.csv` (§2.2.1) |
+| `source_id` | — | clave en `data/sources.md` |
+
+**[D] Todas las masas en kg.** El fichero llegó a tener una columna `core_mass_hg` en hectogramos, unidad que no aparece en ningún otro sitio del proyecto y que existía sólo porque hacía parecer correcto un valor equivocado. Una sola unidad por magnitud en todo el proyecto: kg, m, m/s, J, y mm únicamente para espesores y calibres, por ser la convención de las fuentes.
 
 ### 2.2 Tabla de penetración — `data/penetration.csv`
 
@@ -51,10 +61,16 @@ Convención: **[D]** decidido · **[S]** supuesto, pendiente de fuente o de veri
 | `shell_id` | — | enlaza con la tabla anterior |
 | `distance_m` | m | |
 | `angle_deg` | ° | **[D] medido desde la normal**: 0° es impacto perpendicular |
-| `penetration_mm` | mm | **[D] nominal** |
-| `striking_velocity_ms` | m/s | velocidad de impacto a esa distancia (ver §2.2.1) |
+| `penetration_mm` | mm | espesor perforado |
 | `armour_type` | — | contra qué blindaje se midió |
-| `source` | — | obligatorio, va a la memoria |
+| `angle_from` | — | desde dónde mide el ángulo la fuente de esa fila |
+| `thickness_basis` | — | `nominal` o `los`; decide si §3.4 divide por el coseno |
+| `criterion` | — | criterio de penetración de la fuente (`complete`, …). **Imprescindible**: alemanes, británicos y estadounidenses no usaban el mismo, y comparar cifras de criterios distintos es el error clásico de este tema. Es además la clave de §8 |
+| `source_id` | — | clave en `data/sources.md` |
+
+La velocidad de impacto ya no vive aquí: tiene fichero propio (§2.2.1).
+
+**[D] Comprobación obligatoria en el cargador: la penetración tiene que decrecer al aumentar el ángulo.** Para un mismo `shell_id` y una misma `distance_m`, si una fila de ángulo mayor da más penetración que una de ángulo menor, o los datos están mal o la convención de `angle_from` es la contraria. Son tres líneas y protege del error de convención, que no se ve a ojo.
 
 Interpolación lineal entre filas en distancia y en ángulo. Fuera del rango tabulado, extrapolación marcada como tal en la salida, para no presentar como dato lo que es una extrapolación.
 
@@ -62,21 +78,56 @@ Interpolación lineal entre filas en distancia y en ángulo. Fuera del rango tab
 
 Hace falta para evaluar la perforación de **cualquier capa que no sea la primera**: el mamparo interno, el blindaje espaciado o las orugas reciben el proyectil con velocidad residual, y esa velocidad no corresponde a ninguna distancia de la tabla.
 
-**[D] Resuelto para el PzGr. 39** con datos de velocidad restante encontrados el 23/10/2026
-(500 m: 691 m/s; 1000 m: 636 m/s; 2000 m: 537 m/s). Pendiente para los otros dos proyectiles.
+**[D] La fuente de verdad es una tabla medida, no un modelo ajustado.** Vive en
+`data/velocity.csv` (`shell_id, distance_m, velocity_ms`) y se interpola por distancia con la
+misma rutina que ya interpola `penetration.csv`. Una interpolación pasa exacta por cada punto
+medido, cosa que ningún exponencial ajustado hace.
 
-El modelo de arrastre `v(x) = v₀·e^{-Kx}`, con `K = ρ·Cd·A/(2m)`, describe bien el proyectil:
-el `Cd` despejado de cada punto por separado sale 0,4118 / 0,4143 / 0,4198, o sea **la misma
-constante dentro del 1,9 %**. Con `Cd = 0,415` el ajuste queda por debajo de 2 m/s en los tres
-puntos. El coeficiente deja de ser un supuesto y pasa a ser un valor medido.
+El modelo de arrastre `v(x) = v₀·e^{-Kx}`, con `K = ρ·Cd·A/(2m)`, queda como **respaldo** para
+proyectiles sin tabla, y como el método con el que se obtuvieron los puntos que faltaban del
+PzGr. 39. No como camino principal.
 
-| Distancia | `striking_velocity_ms` | Origen |
+**[D] PzGr. 39, resuelto** (23/10/2026). El `Cd` despejado de cada punto por separado sale
+0,4118 / 0,4143 / 0,4198, o sea **la misma constante dentro del 1,9 %**. Con `Cd = 0,415` el
+ajuste queda por debajo de 2 m/s en los tres puntos medidos, así que los dos interpolados son
+fiables.
+
+| Distancia | m/s | Origen |
 |---|---|---|
 | 100 m | 738 | del modelo |
 | 500 m | 691 | medido |
 | 1000 m | 636 | medido |
 | 1500 m | 585 | del modelo |
 | 2000 m | 537 | medido |
+
+**[D] PzGr. 40, resuelto** (24/10/2026), y es el caso que justifica haber pasado a tabla. Los
+cinco puntos son medidos: 905 / 790 / 660 / 540 / 430 m/s a 100, 500, 1000, 1500 y 2000 m,
+coherentes con los 930 m/s de boca al extrapolar el primer tramo hacia atrás.
+
+Aquí **un solo exponencial no vale**. El `Cd` despejado tramo a tramo no es constante:
+
+| Tramo | `Cd` implicado |
+|---|---|
+| 0–100 m | 0,413 |
+| 100–500 m | 0,515 |
+| 500–1000 m | 0,545 |
+| 1000–1500 m | 0,608 |
+| 1500–2000 m | 0,690 |
+
+La subida es física, no error de los datos: el proyectil baja de Mach 2,7 a Mach 1,26 y el `Cd`
+crece al acercarse a la transónica. Con un `Cd` único ajustado a todo el rango (0,584) el error
+llega al **−4,2 % en velocidad y −8,2 % en energía a 1000 m**, que es la distancia más usada.
+Por eso el `cd` de `shells.csv` es respaldo y no fuente.
+
+Dato para la memoria: el primer tramo del PzGr. 40 da `Cd` 0,413, prácticamente el 0,415 del
+PzGr. 39. **Las dos formas arrastran igual**; la caída mucho más rápida del APCR viene de su
+masa, 4,1 kg frente a 6,8 para el mismo calibre, y eso ya lo recoge la masa en `K`. Explica de
+paso por qué el APCR perdía prestaciones a distancia.
+
+**[S] Gr. 38 Hl/C: la tabla está rellena con 450 m/s constantes, y eso es un marcador, no un
+dato.** El proyectil decelera como cualquier otro. Se acepta porque la penetración de una carga
+hueca no depende de la velocidad de impacto (§5), así que el valor sólo entra en la energía del
+cuerpo del proyectil, que no es el penetrador. Declarado en §9.
 
 **Comprobación cruzada con la caída.** Los datos de caída de la misma fuente (−2,4 m a 500 m,
 −10,0 a 1000, −44,8 a 2000) son independientes de la velocidad. Derivando el tiempo de vuelo
@@ -99,11 +150,18 @@ históricos independientes —una tabla de penetración y una de velocidades— 
 relación teórica que no interviene en la elaboración de ninguno de los dos. Es el resultado de
 validación más fuerte del trabajo hasta la fecha, y justifica usar `n = 1,428` en §3.4.1.
 
-**Para los proyectiles sin datos**, por orden: buscar un solo punto publicado de velocidad
-restante, que basta para despejar su `Cd`; o estimar el `Cd` por forma, declarándolo como
-supuesto y metiéndolo en el análisis de sensibilidad. El PzGr. 40 pesa un 40 % menos para el
-mismo calibre, así que su deceleración será bastante mayor aunque su forma sea parecida; eso
-ya lo recoge la masa en `K`, no hay que modelarlo aparte.
+**[D] Precedencia, para que no haya dos fuentes de verdad.** El cargador resuelve la velocidad
+a una distancia así, y en este orden:
+
+1. Interpolación de `velocity.csv` si el `shell_id` tiene filas. **Es el caso normal.**
+2. Si no las tiene, `v₀·e^{-Kx}` con el `cd` de `shells.csv`, marcando el valor como estimado
+   en la salida.
+3. Si tampoco hay `cd`, error en la carga. Nunca un valor por defecto silencioso.
+
+Para un proyectil nuevo sin datos basta **un solo punto publicado** de velocidad restante para
+despejar su `Cd`; a falta de eso, estimarlo por forma, declararlo supuesto y meterlo en el
+análisis de sensibilidad. Si se consiguen tres puntos o más, pasa a `velocity.csv` y el `cd`
+deja de usarse, como ha ocurrido con el PzGr. 40.
 
 ### 2.3 Materiales — `data/materials.csv`
 
@@ -111,10 +169,14 @@ Una sola tabla para blindaje y para módulos. El blindaje de referencia es RHA c
 
 | Campo | Notas |
 |---|---|
-| `id` | `RHA`, `Steel`, `Track`, `flesh`, `cast_iron`, `propellant`… |
+| `id` | `RHA`, `Steel`, `Track`, `Flesh`, `Cast_Iron`, `Ammo`, `Engine`, `Gasoline`, `Diesel`. Mayúscula inicial, igual que en el `.glb` |
 | `resistance` | **[S]** resistencia relativa a RHA; multiplica la longitud de camino para obtener el equivalente en RHA |
-| `spall` | **[S]** tendencia a astillar, 0–1 |
-| `source` | obligatorio, o la palabra «supuesto» |
+| `spall` | **[S]** tendencia a astillar, 0–1. Vacío a 26/10/2026 |
+| `source_id` | clave en `data/sources.md`, o la palabra «supuesto» |
+
+**[D] El `spall` no es un dato histórico y no se va a encontrar en ninguna tabla.** Es un
+parámetro libre del modelo (§6). Lo investigable no son los nueve números sino la literatura de
+*behind-armour debris*, para poder justificar el rango en el que se fijan.
 
 **[S]** `Track` debe quedar bastante por debajo de 1: una oruga son eslabones con huecos, no un bloque macizo.
 
@@ -122,7 +184,7 @@ Una sola tabla para blindaje y para módulos. El blindaje de referencia es RHA c
 
 **Placas** (`ARM_*`): `Thickness_mm` (float), `Armour_Material` (texto, id de materiales).
 
-**Módulos** (`MOD_*`): `Module_Type` (texto, con mayuscula inicial: `Crew`, `Engine`, `Transmission`, `Ammo`, `Fuel`), `Health` (**[D] float**), `Armour_Material` (texto, misma tabla).
+**Módulos** (`MOD_*`): `Module_Type` (texto, con mayuscula inicial: `Crew`, `Engine`, `Transmission`, `Ammo`, `Fuel`, `Gun`), `Health` (**[D] float**), `Armour_Material` (texto, misma tabla).
 
 **[D] Los módulos no llevan propiedad de espesor**: la longitud de camino por dentro de su caja ya la da la malla. Un fragmento que entra de refilón por una esquina del motor atraviesa menos que uno que lo cruza entero.
 
@@ -136,7 +198,15 @@ Una sola tabla para blindaje y para módulos. El blindaje de referencia es RHA c
 
 Se lanza el rayo y se obtiene la lista ordenada de tramos: objeto, punto de entrada, punto de salida, longitud, normal de entrada.
 
-**[S] Suposición de convexidad.** La entrada es la primera intersección y la salida la última. Vale para cualquier objeto convexo. Todas las placas y laterales del Pz IV H lo son. Una pieza en L o una torreta fundida cóncava rompería la suposición en silencio, así que el validador tiene que comprobarlo. **Pausado hasta que aparezca una pieza así.**
+**[S] Suposición de convexidad.** La entrada es la primera intersección y la salida la última. Vale para cualquier objeto convexo. Una pieza en L o una lámina curva rompería la suposición en silencio, así que el validador lo comprueba desde el 23/10/2026.
+
+**El caso que más duele es la lámina curva**, y conviene entenderlo antes de modelar manteletes, cúpulas o una torreta fundida. Una lámina curva no es convexa, y con un rayo rasante a la curvatura puede dar cuatro intersecciones: entra por la cara exterior, sale por la interior, vuelve a entrar por la interior y sale por la exterior. Primera y última abarcan entonces también el hueco de aire intermedio, y el camino sale casi el doble del real. Con rayos aproximadamente radiales no ocurre.
+
+**[D] Solución general: facetar.** Todo lo curvo se parte en tramos casi planos, suficientes para que ningún rayo pueda cruzar dos superficies interiores dentro de la misma pieza. Es lo que se hizo con los cilindros de la transmisión, con el anillo de torreta del techo del casco y con el mantelete.
+
+**[D] Corolario de construcción: las piezas se generan como intersección de semiespacios**, no uniendo vértices. Cuatro puntos en el espacio no son coplanarios salvo que se les obligue, así que una placa construida a mano sale con las caras grandes alabeadas, y entonces el espesor medido no es el declarado y la pieza deja de ser convexa. Definida como intersección de planos (exterior, interior, suelo, techo y los planos de las piezas vecinas), la convexidad y la planitud salen por definición, y dos piezas contiguas comparten cara exacta porque el límite de una *es* el plano de la otra.
+
+**[S] No convexas pendientes a 26/10/2026**: `ARM_Front_Top_Plate`, `ARM_Lower_Side_L_Plate`, `ARM_Lower_Side_R_Plate` y `MOD_Engine` (este último, convexo a propósito para imitar el V12, se deja como está).
 
 ### 3.2 Agrupación por contacto
 
@@ -253,7 +323,7 @@ Por tanto, **una rutina de recorrido y dos reglas de daño**:
 
 | `Module_Type` | Regla |
 |---|---|
-| `Engine`, `Transmission` | Daño = energía depositada, acumulativa |
+| `Engine`, `Transmission`, `Gun` | Daño = energía depositada, acumulativa |
 | `Crew` | Incapacitado si un fragmento **entra** con energía por encima del umbral; la energía que deposite después no cuenta |
 | `Ammo`, `Fuel` | Umbral de detonación / ignición (§4, §7) |
 
@@ -272,12 +342,46 @@ El rayo sigue frenándose igual en todos los casos: lo único que cambia es cóm
 
 | `Module_Type` | Health | Criterio |
 |---|---|---|
-| `Crew` torso y cabeza | ~80 J | Umbral de energía de **entrada** del fragmento (§3.7.1). **Pendiente de citar** literatura de balística de heridas (criterios tipo Kokinakis-Sperrazza). |
+| `Crew` torso y cabeza | 80 J | Umbral de energía de **entrada** del fragmento. **Convención declarada, no criterio validado** — ver §3.7.2. |
 | `Crew` piernas | 3-5× el del torso | **[S]** La dependencia de la región del cuerpo está reconocida en los modelos de vulnerabilidad militares, así que el efecto es citable; el factor concreto es supuesto y va al análisis de sensibilidad (§6). |
 | `Transmission` | ~150 kJ | Menor que el motor; un impacto de lleno la inutiliza. |
 | `Engine` | ~300 kJ | Un núcleo que llega con esa energía se detiene en 7 cm de motor y la deposita entera. |
+| `Gun` tubo | ~40 kJ | **[S]** Acero macizo de pared gruesa, y sale por delante del mantelete. El más robusto de los dos. |
+| `Gun` recámara | ~15 kJ | **[S]** Mecanismo de precisión: se agarrota mucho antes de destruirse. Los dos valores son parámetros libres (§6) y no tienen fuente; lo que sí está razonado es el **orden**, tubo por encima de recámara. |
 | `Ammo` | — | No aplica: es un **umbral de detonación**, no una reserva. |
 | `Fuel` | — | No aplica: **umbral de ignición**. El incendio no es destrucción instantánea (§7). |
+
+### 3.7.2 El umbral de 80 J es una convención sin validar
+
+Hay que escribirlo con precisión, porque la bibliografía dice algo distinto de lo que suele citarse.
+
+**Qué se creía.** Que 80 J (58 ft·lb) es el umbral de incapacitación por fragmento. Nota de unidades: **58 ft·lb *son* 80 J**, no son dos criterios distintos ni los extremos de un rango.
+
+**Qué dice la fuente.** El artículo localizado el 24/10/2026 (PMID 28505551, en `data/sources.md`) rastrea el origen del criterio hasta Rohne y concluye tres cosas:
+
+1. Ni Rohne ni los balísticos de la década siguiente explicaron **de dónde salía** el valor de 8 mkg ni **qué entendían por inmovilización**.
+2. El poder de penetración de la bala M/88 a 80 J se reprodujo en laboratorio sobre jabón balístico, y la profundidad alcanzada es llamativamente alta, lo que respalda la afirmación de Rohne.
+3. Pero **no fue posible validar el criterio**, y el artículo **recomienda explícitamente no usar un límite de energía para definir ningún tipo de incapacitación**.
+
+**Dos saltos, no uno.** Aunque el criterio fuese válido, se refiere a **una bala M/88 penetrando tejido**. Aquí se aplica a **fragmentos de blindaje**: irregulares, volteando, con otra relación entre energía y daño. Trasladarlo es una segunda suposición sin validar, que el artículo ni aborda.
+
+**[D] Qué se hace, y por qué.** Se mantienen los 80 J como valor de partida, porque dentro del alcance de este trabajo no hay sustituto mejor: cualquier criterio más fino es balística de heridas, no penetración de blindaje. Pero cambia de categoría: deja de presentarse como dato con fuente y pasa a **convención con origen documentado y sin validación**, citada en §9 y ajustable desde fichero (§1, §6).
+
+Declararlo así es mejor defensa que citarlo con aplomo. **[A] Pendiente de consulta con el tutor**, y la pregunta es de alcance, no de balística: *¿se acepta un criterio de daño a la tripulación que es una convención sin validar y declarada como tal, o el proyecto necesita otro criterio?*
+
+### 3.7.3 Un `Module_Type` puede abarcar varios objetos
+
+**[D] Algunos tipos se evalúan en conjunto, no pieza a pieza.** La munición ya funcionaba así: hay 87 cartuchos como objetos independientes, y la detonación de cualquiera inutiliza el vehículo. El cañón es el mismo patrón: tubo y recámara son objetos separados en el modelo 3D, con `Health` distinto, pero **si cualquiera de los dos queda fuera de servicio el vehículo no puede devolver el fuego**.
+
+En vez de un caso especial por tipo, una sola regla:
+
+| `Module_Type` | Agregación entre objetos del mismo tipo |
+|---|---|
+| `Ammo`, `Gun` | **OR**: basta con que uno caiga |
+| `Crew` | OR dentro de cada tripulante, pero cada tripulante cuenta por separado (§7) |
+| `Engine`, `Transmission`, `Fuel` | Cada objeto, por su cuenta |
+
+Esto evita tener que inventar un tipo nuevo por cada cosa que se modele en varias piezas, y es lo que hace que la decisión de «tubo y recámara separados en el 3D pero un solo módulo lógico» no necesite código especial.
 
 ---
 
@@ -316,7 +420,10 @@ La carga hueca cambia la moneda del cálculo.
 
 Es la parte más difícil de defender, porque **no hay datos para calibrarla**: las tablas solo cubren la perforación, no los efectos tras el blindaje. Cada parámetro es un número que hay que justificar o declarar como supuesto.
 
-Van todos en `data/fragmentation.csv`, una fila por tipo de proyectil, nunca escondidos en el código.
+Van todos en `data/fragmentation.csv`, una fila por tipo de proyectil, nunca escondidos en el
+código (§1). **El fichero no existe aún a 26/10/2026**; se crea con el núcleo en noviembre. Los
+parámetros que no dependen del proyectil van en un `data/parametros.csv` de pares clave-valor,
+y los `Health` de los módulos salen del `.glb`.
 
 | Parámetro | Depende de | Qué controla |
 |---|---|---|
@@ -325,6 +432,7 @@ Van todos en `data/fragmentation.csv`, una fila por tipo de proyectil, nunca esc
 | `spall_fraction` | material y espesor/calibre | reparto entre metralla y núcleo |
 | `ricochet_angle` | tipo, calibre/espesor | umbral de rebote |
 | `k_absorcion` | — | pérdida de energía por recorrido |
+| `umbral_crew_torso` | — | energía de entrada que incapacita (§3.7.2). **Sin validar**, y el que más probabilidades tiene de cambiar |
 | `umbral_crew_piernas` | — | múltiplo del umbral del torso (§3.7.1) |
 | `fuze_arm_threshold` | solo APHE | espesor mínimo para armar |
 | `standoff_curve` | solo HEAT | penetración frente a distancia de detonación |
@@ -362,7 +470,13 @@ Tipos de evento: `impact`, `ricochet`, `stopped`, `perforation`, `fragment_spawn
 
 Los 81,00 mm son los 80 nominales divididos por el coseno de 9°. Si el cálculo devuelve 80,0 es que está midiendo con la propiedad y no con la geometría.
 
-**Validación contra las tablas.** Pruebas automáticas que disparen contra una placa plana a los ángulos y distancias tabulados y comprueben que el resultado reproduce la tabla. Es lo que da peso de ingeniería a la memoria.
+**Validación contra las tablas.** Pruebas automáticas que disparen contra una placa plana a los ángulos y distancias tabulados y comprueben que el resultado reproduce la tabla.
+
+**[A] Pero esto por sí solo es circular, y hay que decirlo.** `penetration.csv` es la *entrada* del modelo, así que reproducir la tabla demuestra que la interpolación y la geometría funcionan, no que el modelo acierte. Es una prueba de regresión necesaria, no una validación.
+
+Para que haya validación hacen falta datos **independientes de los que alimentan el modelo**. La vía más practicable aprovecha la columna `criterion` de §2.2: alemanes, británicos y estadounidenses midieron el mismo cañón con criterios de penetración distintos. Si el modelo, alimentado con la tabla alemana, reproduce las mediciones aliadas del KwK 40 dentro de un margen declarado, eso ya no es circular. Localizar esas mediciones es tarea abierta y es la pregunta que va a hacer el tribunal.
+
+El resultado de §2.2.1 sobre el exponente de De Marre **sí** es validación real, y conviene presentarlo como tal: dos conjuntos de datos históricos independientes coinciden con una relación teórica que no interviene en la elaboración de ninguno de los dos.
 
 ---
 
@@ -374,15 +488,39 @@ Los 81,00 mm son los 80 nominales divididos por el coseno de 9°. Si el cálculo
 - Las caras de canto dan un ángulo y un espesor no representativos. Hay que tratar aparte las caras cuya normal es casi perpendicular a la normal exterior de su placa.
 - La suposición de convexidad (§3.1).
 - Los parámetros de §6 no están calibrados contra datos de efectos tras el blindaje.
+- **El criterio de incapacitación de la tripulación es una convención sin validar** (§3.7.2). La fuente que documenta su origen recomienda explícitamente no usar umbrales de energía para esto. Se usa por falta de alternativa dentro del alcance, no por estar respaldado.
+- La velocidad del Gr. 38 Hl/C está puesta como constante y no lo es (§2.2.1). Irrelevante para su penetración, que no depende de la velocidad.
+- La validación contra tablas es circular mientras no haya datos independientes (§8).
+- **`Gun` es una sola caja para recámara y tubo**, y no se comportan igual: el tubo es acero macizo y sale por delante del mantelete, la recámara es un mecanismo de precisión y va dentro. Con un único `Health` un impacto en el tubo cuenta lo mismo que uno en el cierre. Si hace falta, se parte en `Gun_Barrel` y `Gun_Breech` con valores distintos.
 
 ---
 
 ## 10. Pendientes
 
-- [x] ~~Conseguir `striking_velocity_ms` del PzGr. 39~~ (§2.2.1, resuelto 23/10/2026).
-- [ ] Conseguir o estimar `striking_velocity_ms` del PzGr. 40 y del Gr. 38 Hl/C.
-- [ ] Citar el umbral de incapacitación por fragmento que fija el `Health` de la tripulación (§3.7).
+- [x] ~~`striking_velocity_ms` del PzGr. 39~~ (§2.2.1, 23/10/2026).
+- [x] ~~Velocidad del PzGr. 40~~ (§2.2.1, 24/10/2026, cinco puntos medidos).
+- [x] ~~Citar el umbral de incapacitación~~ (§3.7.2, 24/10/2026: la fuente localizada recomienda *no* usar umbrales de energía; el valor queda como convención declarada).
+- [x] ~~Comprobación de convexidad en el validador~~ (23/10/2026).
+
+**Datos**
+
+- [ ] **Corregir la masa del núcleo del PzGr. 40 en `shells.csv`.** El valor `0,9` en hectogramos son 90 g; el núcleo de tungsteno ronda los 0,85 kg, un 21 % de los 4,1 kg totales. Pasar la columna a `core_mass_kg` (§2.1).
+- [ ] Decidir si se borra la columna `cd` de `shells.csv` o se deja como respaldo documentado (§2.2.1).
+- [ ] Velocidad real del Gr. 38 Hl/C, o dejarla declarada en §9 como está.
+- [ ] Dar claves a `data/sources.md` y rellenar `source_id` en las tres tablas. Hoy es una lista plana de URL, así que ninguna cifra es trazable a su fuente.
+- [ ] Columna de 60° para los dos proyectiles cinéticos. Vendrá de ensayos aliados, que son además los datos independientes que pide §8.
+- [ ] `fuze_delay_ms` del PzGr. 39 (ver §4: la espoleta Bd.Z. 5103 no lleva retardo de diseño).
+- [ ] Literatura de *behind-armour debris* para justificar el rango del `spall` (§2.3).
+
+**Modelo y alcance**
+
+- [ ] **Consultar con el tutor el criterio de incapacitación** (§3.7.2), planteado como cuestión de alcance.
+- [ ] Datos de penetración independientes para romper la circularidad de §8.
 - [ ] Regla de detonación de APHE fuera del vehículo (§4).
-- [ ] Reglas de «fuera de combate» (§7).
-- [ ] Rellenar `data/materials.csv` con fuentes.
-- [ ] Comprobación de convexidad en el validador, cuando aparezca una pieza no convexa.
+- [ ] Reglas de «fuera de combate» (§7), incluida la agregación de §3.7.3.
+- [ ] Resolver las cuatro piezas no convexas pendientes (§3.1).
+- [ ] Abrir el hueco del anillo de torreta en el techo del casco si vuelve a hacer falta: `ARM_Top_Plate` fue sustituida por 12 cuñas más la pieza trasera el 24/10/2026.
+
+**Segundo vehículo [A]**
+
+- [ ] Decidir si el T-44 entra, y si entra, si es **sólo blanco** (no requiere ni un dato nuevo de munición) o también **tirador** (duplica la tabla de proyectiles con el ZiS-S-53 de 85 mm). Casco sencillo y muy inclinado, torreta fundida redondeada: ejercita justo la parte del modelo que justifica medir la geometría, y por eso vale más como demostración que un segundo vehículo de planchas planas.
