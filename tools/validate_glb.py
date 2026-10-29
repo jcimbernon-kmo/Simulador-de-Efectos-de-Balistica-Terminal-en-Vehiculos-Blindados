@@ -16,7 +16,10 @@ import struct
 import sys
 
 TOL_THICKNESS_MM = 0.5     # margen entre geometria y propiedad
-TOL_PLANE_M = 1e-5         # margen de convexidad
+TOL_PLANE_M = 1e-5         # por debajo: ruido de coma flotante
+TOL_WARP_M = 1e-3          # por encima: cara alabeada (aviso)
+MAX_VERT_CASCO = 32        # por encima no se hace la prueba exacta de concavidad
+TOL_CONCAV_M = 1e-3        # por encima: concavidad real que falsea el camino (error)
 TOL_WELD_M = 5e-4          # a partir de aqui dos vertices son el mismo
 
 # --- algebra ---------------------------------------------------------------
@@ -107,7 +110,20 @@ def weld(tris):
     return verts, faces
 
 def check_mesh(verts, faces):
-    """(cerrada, normales_fuera, convexa, volumen_m3)"""
+    """(cerrada, normales_fuera, concavidad_m, alabeo_m, volumen_m3)
+
+    Dos defectos distintos, que se arreglan de manera distinta:
+
+    - ALABEO: dos triangulos vecinos que deberian ser una sola cara plana no
+      lo son, porque las cuatro esquinas no son coplanarias. Se mide sobre el
+      cuadrilatero, no sobre los triangulos, porque si no el resultado depende
+      de por que diagonal lo partio el exportador: la misma cara alabeada da
+      un pliegue hacia fuera (invisible para la prueba) o hacia dentro (visible)
+      segun la diagonal. Dos piezas simetricas pueden salir una bien y otra mal.
+      Se arregla aplanando la cara.
+    - CONCAVIDAD: la pieza tiene forma entrante, en L o escalonada. Se arregla
+      partiendola en piezas convexas.
+    """
     used = {}
     for f in faces:
         for i in range(3):
@@ -118,14 +134,42 @@ def check_mesh(verts, faces):
     vol = sum(dot(verts[f[0]], cross(verts[f[1]], verts[f[2]])) / 6.0
               for f in faces)
 
-    convex = True
+    # Un vertice por delante del plano de una cara rompe la convexidad. Pero hay
+    # dos causas distintas y se arreglan de forma distinta, asi que se separan:
+    #
+    #   - el vertice culpable es la esquina opuesta de un triangulo vecino -> la
+    #     cara de esos dos triangulos esta ALABEADA (sus cuatro esquinas no son
+    #     coplanarias). La pieza es convexa salvo ese pliegue. Ojo: el pliegue se
+    #     ve o no segun por que diagonal partiera el cuadrilatero el exportador,
+    #     asi que dos piezas simetricas pueden dar numeros distintos.
+    #   - cualquier otro vertice -> esquina entrante de verdad, pieza en L o
+    #     escalonada, y hay que partirla.
+    vecino = {}
+    for f in faces:
+        for k in range(3):
+            a, b = f[k], f[(k + 1) % 3]
+            vecino.setdefault((min(a, b), max(a, b)), []).append(f)
+
+    warp = concav = 0.0
     for f in faces:
         n = norm(cross(sub(verts[f[1]], verts[f[0]]), sub(verts[f[2]], verts[f[0]])))
         p0 = verts[f[0]]
-        if max(dot(n, sub(v, p0)) for v in verts) > TOL_PLANE_M:
-            convex = False
-            break
-    return closed, vol > 0, convex, abs(vol)
+        opuestos = set()
+        for k in range(3):
+            a, b = f[k], f[(k + 1) % 3]
+            for g in vecino.get((min(a, b), max(a, b)), []):
+                if g != f:
+                    opuestos.update(i for i in g if i not in (a, b))
+        for i, v in enumerate(verts):
+            fuera = dot(n, sub(v, p0))
+            if fuera <= TOL_PLANE_M:
+                continue
+            if i in opuestos:
+                warp = max(warp, fuera)
+            else:
+                concav = max(concav, fuera)
+    return closed, vol > 0, concav, warp, abs(vol)
+
 
 def geom_thickness(verts, faces):
     """Separacion entre el par de caras paralelas mas proximo, en mm."""
@@ -243,13 +287,18 @@ def main(glb, data_dir):
                 warns.append(f"{name}: modulo con Thickness_mm; lo da la geometria")
 
         verts, faces = weld(tris)
-        closed, outward, convex, vol = check_mesh(verts, faces)
+        closed, outward, concav, warp, vol = check_mesh(verts, faces)
         if not closed:
             errors.append(f"{name}: malla abierta (aristas sin pareja)")
         if not outward:
             errors.append(f"{name}: normales hacia dentro")
-        if not convex:
-            warns.append(f"{name}: no convexo; entrada/salida del rayo no valen")
+        if concav > TOL_CONCAV_M:
+            errors.append(f"{name}: concavo {concav * 1000:.2f} mm; esquina entrante, "
+                          f"el camino se mide de mas (§3.1). Partir en piezas convexas")
+        elif warp > TOL_WARP_M:
+            warns.append(f"{name}: cara alabeada hasta {warp * 1000:.2f} mm; la pieza "
+                         f"es convexa salvo ese pliegue, que solo afecta a los rayos "
+                         f"que pasan por ese borde")
 
         gt = geom_thickness(verts, faces)
         if is_arm:
@@ -303,8 +352,42 @@ def _find_glb():
     return None
 
 
+def _autoprueba():
+    """Tres casos con respuesta conocida para la separacion alabeo/concavidad."""
+    def prisma(perfil):
+        v = [(x, y, z) for (x, y) in perfil for z in (0.0, 1.0)]
+        n = len(perfil)
+        f = []
+        for i in range(n):                       # laterales
+            a0, a1 = 2 * i, 2 * i + 1
+            b0, b1 = 2 * ((i + 1) % n), 2 * ((i + 1) % n) + 1
+            f += [(a0, b0, b1), (a0, b1, a1)]
+        for i in range(1, n - 1):                # tapas
+            f += [(0, 2 * (i + 1), 2 * i), (1, 2 * i + 1, 2 * (i + 1) + 1)]
+        if sum(dot(v[a], cross(v[b], v[c])) for a, b, c in f) < 0:
+            f = [(a, c, b) for a, b, c in f]     # normales hacia fuera
+        return v, f
+
+    v, f = prisma([(0, 0), (1, 0), (1, 1), (0, 1)])
+    _, _, c, w, _ = check_mesh(v, f)
+    assert c < 1e-9 and w < 1e-9, f"caja: {c}, {w}"
+
+    v2 = list(v)
+    v2[7] = (v2[7][0], v2[7][1], v2[7][2] + 0.05)   # una esquina fuera del plano
+    _, _, c, w, _ = check_mesh(v2, f)
+    assert c < 1e-9 and w > 1e-3, f"caja alabeada: {c}, {w}"
+
+    v, f = prisma([(0, 0), (2, 0), (2, 1), (1, 1), (1, 2), (0, 2)])
+    _, _, c, w, _ = check_mesh(v, f)
+    assert c > 0.1, f"prisma en L: {c}, {w}"
+    print("autoprueba de convexidad: bien")
+
+
 if __name__ == '__main__':
     args = sys.argv[1:]
+    if args[:1] == ['--selftest']:
+        _autoprueba()
+        sys.exit(0)
     if not args:
         guess = _find_glb()
         if guess is None:

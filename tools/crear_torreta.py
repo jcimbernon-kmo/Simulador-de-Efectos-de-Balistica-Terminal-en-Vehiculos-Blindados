@@ -343,8 +343,11 @@ if col is None:
     col = bpy.data.collections.new(COLECCION)
     bpy.context.scene.collection.children.link(col)
 
+# Los laterales (ARM_Turret_Addon_*) los genera crear_lateral_torreta.py y NO
+# son de este script: antes se borraban junto con todo lo que empezara por
+# ARM_Turret_, y relanzar la torreta se llevaba el blindaje lateral por delante.
 for ob in list(bpy.data.objects):
-    if ob.name.startswith(PREFIJO):
+    if ob.name.startswith(PREFIJO) and not ob.name.startswith(PREFIJO + "Addon_"):
         bpy.data.objects.remove(ob, do_unlink=True)
 
 creados = []
