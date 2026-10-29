@@ -1,2 +1,19 @@
+# Blender
 *.blend1
+*.blend2
+
+# Python
 __pycache__/
+
+# Solo local, fuera del repositorio (29/10/2026)
+CLAUDE.md
+
+# En tools/ solo van las herramientas que corren fuera de Blender.
+# Los generadores y los arregladores de malla se quedan en local.
+# OJO: esto tambien deja fuera raycast_test.py, que es el caso de regresion
+# de §8, y los generadores, que contienen las medidas tomadas de los planos.
+# Ver el punto abierto de estado.md §4.
+tools/*
+!tools/validate_glb.py
+!tools/ballistic_data.py
+!tools/revisar_vertices.py
