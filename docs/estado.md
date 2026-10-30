@@ -190,7 +190,7 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 - [x] **`tools/disparo.py`** — `.glb` + tablas → tramos (§3.1) → capas (§3.2) → perforación (§3.4) →
   energía (§3.4.2) → tapón (§3.5 y §3.6) → daño a módulos (§3.7) → agregación (§3.7.3) → línea
   temporal de §7.1 en JSON. Python puro, sin dependencias y sin motor.
-- [x] **Una sola cuenta de estado: la energía, y la capacidad se deduce de ella** (§3.4.2 y §3.4.3).
+- [x] **Una sola cuenta de estado: la energía, y la capacidad se deduce de ella** (§3.4.2).
   Lo forzó el primer disparo real: con las dos cuentas en paralelo el núcleo se quedaba sin energía
   en el tercer cartucho y seguía perforando con 56 mm de capacidad, saliendo por la plancha trasera
   con cero julios a los 2 932 ms. Con la cuenta única sale con 107 kJ y 16,7 mm a los 13,0 ms, e
