@@ -1,24 +1,29 @@
 # Estado y lista de verificación
 
-Revisión del 29/10/2026, 19:50. Generada comprobando el repositorio, los CSV con
+Revisión del 04/11/2026. Generada comprobando el repositorio, los CSV con
 `tools/ballistic_data.py`, el modelo con `tools/validate_glb.py` (281 objetos: 2 errores,
 20 avisos) y el núcleo con `tools/disparo.py --selftest`.
+
+Aviso sobre las fechas: la revisión anterior se tituló «29/10, 19:50», pero el fichero se guardó el
+30/10 a las 21:57. Las marcas «(29/10)» de este documento pueden corresponder al 29 o al 30. A
+partir de aquí la fecha se toma del reloj y no de memoria.
 
 ---
 
 ## 1. Bloqueantes
 
-- [ ] **Tres días sin versionar, y el repositorio remoto está a punto de vaciarse.** El último
-  commit es del 26/10 a las 23:31 («Added Cannon, cuppula, crew and extra armour to Pz IV»). Sin
-  versionar: las orugas, las ruedas motriz y tensora, los cinco CSV, la columna `spall`, el cañón y
-  el motor regenerados, `core_diameter_mm`, el cargador de velocidad, tres scripts nuevos y cuatro
-  reescrituras de `modelo_balistico.md`. **Es el único punto de esta lista que no se puede
-  rehacer.** Reestructurar el repositorio no exige dejar el trabajo sin commitear: se puede
-  commitear en una rama ahora y reescribir la historia después.
+- [x] ~~Tres días sin versionar~~: commits del 30/10 y del 1/11 en la rama `reestructuracion`,
+  subidos al remoto. `tools/disparo.py` está versionado; `tools/raycast_test.py` **no** (el
+  `.gitignore` del disco no lo incluye), pero la regresión de §8 también la cubre
+  `disparo.py --selftest`.
+- [ ] **`main` en GitHub sigue en el 24/10.** Todo lo posterior está en `reestructuracion`. Hay que
+  abrir el PR a `main` y fusionarlo: es lo primero que vería el tutor al abrir el repositorio.
 - [ ] **Ninguna cifra del proyecto es trazable a su fuente.** `data/sources.md` son cuatro URL
   sueltas y ninguna de las cuatro tablas tiene columna `source_id`. Cuanto más se tarde, menos se
-  va a acordar de dónde salió cada número. Hoy se han añadido dos valores más sin fuente
-  (`core_diameter_mm` y el `resistance` de `Wheel`).
+  va a acordar de dónde salió cada número. El 29/10 se añadieron dos valores más sin fuente
+  (`core_diameter_mm` y el `resistance` de `Wheel`). **Ya hay dos fuentes primarias**: los dibujos
+  13 C 1235 (7,5 cm PzGr. 39/42) y 13 C 1236 (7,5 cm PzGr. 40/42), en `models/`. Falta meterlos en
+  `sources.md` con número y fecha.
 - [ ] **Columna de 60° vacía en los dos proyectiles cinéticos** (10 celdas). Es el ángulo que más
   aparece en un blindaje inclinado, así que hoy todo lo que pase de 30° es extrapolación. Además
   esos datos, si se buscan en ensayos aliados, son los datos independientes que pide §8 y que
@@ -40,7 +45,11 @@ Revisión del 29/10/2026, 19:50. Generada comprobando el repositorio, los CSV co
   tapón del APCR salía 7,2 veces de más.
 - [x] Tipo del PzGr. 39 renombrado a `APCBC-HE` (29/10). No afecta al código: lo único que mira
   `type` es la rama del APCR.
-- [ ] **Fuente para los 28 mm del núcleo.** No está en la ficha del KwK 40, que da masa, velocidad
+- [ ] **`mass_kg` del PzGr. 40: el dibujo 13 C 1236 da 4,75 kg y el CSV 4,10.** Hay que elegir uno
+  y anotar la fuente. El del PzGr. 39 sí cuadra (6,8 kg en el dibujo 13 C 1235), aunque el explosivo
+  del dibujo son 17 g y el CSV tiene 16,4.
+- [ ] **Fuente para los 28 mm del núcleo.** El dibujo 13 C 1236 dibuja el núcleo en corte, con la
+  ojiva de radio 45: medirlo ahí convierte el supuesto en dato. No está en la ficha del KwK 40, que da masa, velocidad
   y penetración pero no toca el núcleo. El valor está derivado de `core_mass_kg` con carburo de
   tungsteno a ~15 000 kg/m³, y la suposición declarada es la esbeltez (L/d ≈ 3,3).
 - [ ] **`fuze_delay_ms` = 3 en el PzGr. 39 contradice a `modelo_balistico.md`**, que dice en §10 que
@@ -72,8 +81,10 @@ Revisión del 29/10/2026, 19:50. Generada comprobando el repositorio, los CSV co
   física declarable; los discutibles son `Cast_Iron` (1,5), `Track` (0,3) y `Wheel` (0,13).
 - [x] **Material `Wheel` añadido y asignado a las veinte ruedas** (29/10).
 - [ ] Fijar su `resistance`. Ver §1.
-- [ ] `Engine` (0,1) y `Diesel` (0,1) están definidos y no los usa ningún objeto del `.glb`: el
-  motor va con `Cast_Iron` (0,3) y el depósito con `Gasoline`. O se usan o se borran.
+- [x] ~~Fila `Engine` (0,1) sin usar~~ (31/10): borrada. Las tres piezas del motor van con
+  `Cast_Iron` (0,3), que es con lo que cuadran los julios de §3.7.1.
+- [ ] `Diesel` (0,1) sigue definido y no lo usa ningún objeto del `.glb`; el depósito va con
+  `Gasoline`. O se usa o se borra.
 - [ ] Columna `source`.
 - **Nota de proceso, aprendida a golpes el 29/10: no editar estos CSV con Excel.** Se perdió la
   columna `spall` entera, Excel dejó el fichero bloqueado, y es lo que mete las comas decimales
@@ -102,9 +113,7 @@ aceptados.
   (1,10 mm). La pieza es convexa salvo el pliegue, que solo afecta a los rayos que pasan por ese
   borde. **Declarados en §9 y no cambian ningún resultado**; se arreglan rehaciendo la pieza como
   extrusión de un perfil plano si algún día estorban.
-- [ ] `ARM_Lower_Side_L_Plate.001` conserva el nombre que le puso Blender al espejar. Es la pieza
-  derecha; renombrar a `ARM_Lower_Side_R_Plate`. No afecta a la física, porque el código distingue
-  por propiedades (§2.4), pero un `.001` en el entregable canta.
+- [x] ~~`ARM_Lower_Side_L_Plate.001`~~: ya se llama `ARM_Lower_Side_R_Plate`.
 - [ ] Mantelete descentrado 100 mm respecto a X = 0, y diez cartuchos descentrados 362 mm.
   Comprobar si es intencionado.
 
@@ -121,9 +130,9 @@ aceptados.
 - [ ] **Los diez objetos de tripulación tienen `Health` = 80 J**, piernas incluidas. Congelado hasta
   hablar con el tutor. Mientras tanto, el argumento de piernas y torso de §3.7.1 no está en el
   modelo.
-- [ ] **`MOD_Fuel_Tank_1` tiene `Health` = 150 J**, el mismo número que un cartucho. §3.7.1 dice
-  que `Fuel` usa `Health` como umbral de ignición, no como reserva; con ese valor, cualquier
-  esquirla incendia el depósito. Revisar o declarar.
+- [ ] **`MOD_Fuel_Tank_1` tiene `Health` = 5000 J** (la revisión anterior decía 150 J por error).
+  §3.7.1 dice que `Fuel` usa `Health` como umbral de ignición, no como reserva. Falta justificar de
+  dónde sale el umbral.
 - [x] Munición: 87 cartuchos, la dotación real del Pz IV H.
 - [x] Transmisión en cinco cajas, motor en tres piezas (228,0 / 36,0 / 36,0 kJ), cañón en tubo
   (40 kJ) y recámara (25 kJ).
@@ -132,34 +141,47 @@ aceptados.
   agotar una pata de 36 kJ inutilizaría un motor de 300 kJ, y el resultado dependería de en cuántos
   trozos se cortó la malla.
 
+### Mallas de proyectil (1/11)
+- [x] Tres mallas visuales, una por fichero y con el `shell_id` como nombre:
+  `models/PzGr39_75_L48.glb` (278 mm), `models/PzGr40_75_L48.glb` (256 mm) y
+  `models/Gr38HlC_75_L48.glb` (343 mm). Las tres estancas y con las normales hacia fuera.
+- [x] Convenio de ejes (§7.2): punta en (0, 0, 0), cuerpo hacia -Y, centradas en X y Z, metros.
+- [ ] Núcleo desnudo del PzGr. 40, que §7.2 necesita para el cambio de malla en la perforación.
+- [ ] Gr. 38 Hl/C: sale de una figura sin cotas, así que los 343 mm son [S]. No tiene bandas de
+  forzamiento y el cuerpo es un cono de ⌀76,3 a ⌀71,5 en vez de un cilindro.
+- [ ] El ⌀ 74,4 del PzGr. 39 está aplicado a las bandas y no al cuerpo (cuerpo a 70,7 mm). Aceptado
+  como visual: no entra en el cálculo.
+- [ ] Las mallas se llaman `Plane` / `Plane.001` por dentro.
+
 ## 4. Repositorio
 
 ### Reestructuración del 29/10
 El repositorio remoto se vacía y se vuelve a subir con esta regla: **todo lo de `L1U/` menos
-`CLAUDE.md`**, y en `tools/` solo las tres herramientas que corren fuera de Blender
-(`validate_glb.py`, `ballistic_data.py`, `revisar_vertices.py`). Implementado en `.gitignore`.
+`CLAUDE.md`**, y en `tools/` solo lo que corre fuera de Blender (`validate_glb.py`,
+`ballistic_data.py`, `revisar_vertices.py`, `disparo.py` y `raycast_test.py`). Implementado en
+`.gitignore`.
 
 Lo que sube: `data/` (5 ficheros), `docs/` (2), `models/` (el `.blend`, el `.glb` y las dos
-imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herramientas. Algo más de
+imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y esas cinco herramientas. Algo más de
 1 MB en total.
 
-- [ ] **[A] Punto abierto: la regla deja fuera dos cosas que probablemente deberían subir.**
-  - `tools/raycast_test.py` **no es un generador**: es el caso de regresión de §8, verificado el
-    22/10 (81,00 mm y 9,00° contra `ARM_Upper_Front_Plate`), y es contra lo que se validará el
-    núcleo al portarlo al motor. Dejándolo fuera, el repositorio no tiene ninguna prueba.
+La regla se corrigió el 31/10: el `.gitignore` añade `!tools/disparo.py` (el núcleo de cálculo) y
+`!tools/raycast_test.py` (el caso de regresión de §8), que la versión anterior dejaba fuera. Con eso
+el repositorio ya contiene datos, modelo, núcleo y una prueba.
+
+- [ ] **[A] Punto abierto: los diecinueve generadores de Blender se quedan fuera.**
   - Los diecinueve scripts de Blender son **80 KB** —un tercio de lo que pesa un solo `.blend`— y
     son el único sitio donde existen las medidas tomadas de los planos: las coordenadas en píxeles,
     `ESCALA_Y` = 0,010854 m/px y `Z_TOP` = 0,90629 viven en `crear_orugas.py` y en ningún otro
     lado. Son también lo que permite afirmar que el modelo se generó con scripts parametrizados y
     no a ojo, y lo que responde en una línea a «¿cómo construiste las orugas?».
-  - Alternativa sin pérdida: mover los diecinueve a `tools/blender/` y dejar en `tools/` las tres
+  - Alternativa sin pérdida: mover los diecinueve a `tools/blender/` y dejar en `tools/` las cuatro
     herramientas más `raycast_test.py`. Mismo orden visual, y el criterio pasa a ser «qué dolería
     perder» en vez de «qué se ejecuta fuera de Blender».
-  - **Dejó de ser una preferencia el 29/10**: ahora el núcleo está en `tools/disparo.py`, que
-    importa `ballistic_data` y `validate_glb`. Con el `.gitignore` actual **`disparo.py` tampoco
-    sube**, así que el repositorio subiría los datos y el modelo pero no el núcleo de cálculo. La
-    regla de «solo las tres herramientas» se escribió antes de que el núcleo existiera y hay que
-    rehacerla: como mínimo añadir `disparo.py` y `raycast_test.py`.
+  - **Incoherencia que hay ahora mismo**: `crear_canon_motor.py` y `crear_tripulacion_torreta.py`
+    están en el índice de git desde antes de que existiera la regla, así que hay dos generadores
+    versionados y diecisiete que no, sin ningún criterio que lo explique. O entran todos o salen
+    esos dos del índice.
 
 ### Resuelto
 - [x] `Claude outputs/` borrada.
@@ -170,12 +192,8 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 - [x] `ARM__Roadwheel_*` renombradas sin el doble guión bajo (29/10).
 
 ### Pendiente
-- [x] **`README.md` escrito** (29/10): qué es el proyecto, el estado con enlace a este fichero, la
-  tabla de carpetas, cómo se ejecutan las herramientas con sus `--selftest` y la nota de no editar
-  los CSV con Excel.
-- [ ] `tools/spall.py` y `ballistic_data.spall_fraction()` implementan la misma fórmula de §3.5 en
-  dos sitios. Borrar el primero, que era un borrador. Contradice el principio de §1 del modelo.
-- [ ] `tools/crear_issues.sh` y `tools/create_issues.py` siguen siendo dos versiones de lo mismo.
+- [x] **`README.md` actualizado** (04/11): núcleo de cálculo, mallas de proyectil y comandos de
+  `disparo.py`.
 - [ ] `models/0359546535291c84baaa31c498396ee5.jpg` y `models/2615436_...webp`: son los planos de
   los que salieron las medidas, así que merecen nombres descriptivos, no borrarse.
 - [ ] `tfg.md` sigue en la raíz; su sitio es `docs/`.
@@ -209,9 +227,12 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 - [x] `tools/revisar_vertices.py` — duplicados, caras degeneradas y aristas sueltas.
 - [x] Generadores: torreta, anillo, mejillas, cúpula, lateral de torreta, orugas, munición,
   tripulación, módulos, freno de boca, cañón y motor.
-- [x] `docs/modelo_balistico.md` — diseño del núcleo, con cada afirmación marcada como decidida,
-  supuesta o abierta. Incluye ya el esquema JSON de la línea temporal (§7.1) y las reglas de
-  reproducción (§7.2).
+- [x] `docs/modelo_balistico.md` — diseño del núcleo, con cada afirmación marcada como supuesta o
+  abierta. Incluye el esquema JSON de la línea temporal (§7.1) y las reglas de reproducción (§7.2).
+- [x] **`modelo_balistico.md` reformateado** (30/10): de 907 a 662 líneas y de 68 a 56 KB. Fuera las
+  42 marcas `[D]`, el historial de cambios y las fechas por línea; §3.4.3 fundida en §3.4.2 y §10
+  recortada a la mitad. Se conservan las 23 marcas `[S]`, las 12 `[A]` y todas las fórmulas que usa
+  el código. Pendiente de repaso por Fata de §3 en adelante.
 - [x] **σ_RHA recalculado con la velocidad real de impacto** (29/10): 3,10 GPa en vez de 3,21, con
   un contraste independiente que merece ir a la memoria: el PzGr. 40, con cinco veces menos energía
   penetrante y un núcleo de 28 mm, daba 2,80 GPa. Dos proyectiles muy distintos coincidían dentro
@@ -224,6 +245,9 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
   0,1 % por encima) y la regresión de §8 sobre el modelo real (81,00 mm y 9,00°).
 - Invariante nuevo: ningún disparo puede acabar sin energía y con capacidad disponible. Es lo que
   fallaba antes, y la prueba está para detectar que alguien reintroduzca una segunda ley.
+- Barrido de **1416 disparos** sobre el modelo real (30/10): ninguna incoherencia de balance. Salió
+  de ahí el caso declarado en §9 de un rayo que recorre 245 mm por dentro de una chapa de 8 mm al
+  entrar por el canto, que es geometría correcta y no un fallo del cálculo.
 - `tools/ballistic_data.py --selftest` y `tools/validate_glb.py --selftest`.
 
 ### Pendiente en el núcleo
@@ -235,9 +259,10 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 - [ ] **Recalibrar el `Health` de `Engine` (300 kJ) y `Transmission` (150 kJ)**: se fijaron con la
   ley lineal de `σ_RHA`, que ya no se usa. El «núcleo de 75 mm, 10 cm dentro del motor» de §3.7.1
   pasa de 425 kJ a unos 225 kJ, así que los dos valores están calibrados contra una ley muerta.
-- [ ] **El material `Engine` (0,10) de `materials.csv` no lo usa nadie**: las tres piezas del motor
-  van con `Cast_Iron` (0,30), y los 425 kJ de §3.7.1 cuadran con 0,30. Lo que sobra es la fila.
-  Mientras esté, alguien la pondrá por el nombre.
+- [ ] **Doble conteo de energía en la línea temporal** (§7.1): un evento `module_hit` y el `stopped`
+  que lo sigue llevan el mismo `energy_in_J`, así que quien lea el JSON sumando sin mirar el tipo de
+  evento cuenta esa energía dos veces. Es un problema del esquema, no del cálculo: el núcleo cierra
+  el balance en el `--selftest`.
 - [ ] APHE (§4) y HEAT (§5) sin empezar. `disparo.py` avisa de que la carga y la espoleta del
   PzGr. 39 no se simulan.
 
@@ -247,7 +272,7 @@ Los fragmentos, que es lo que falta para que el daño calculado se parezca al re
 
 ## 6. Proyecto
 
-- [x] **Solicitud para el tutor entregada.**
+- [x] **Solicitud para el tutor entregada.** Sin tutor asignado hasta mediados de noviembre.
 - [ ] Preparar las preguntas para la primera reunión. La principal es el criterio de incapacitación
   de 80 J (§3.7.2): la fuente localizada desaconseja usar umbrales de energía, así que es una
   cuestión de alcance y no un número que se pueda ajustar.

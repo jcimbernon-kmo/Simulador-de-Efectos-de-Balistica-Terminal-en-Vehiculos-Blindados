@@ -567,7 +567,9 @@ El color del daño sale de Health, pero no todos los módulos llevan degradado, 
 
 La razón es del modelo, no del render. En esos cuatro tipos el Health es un umbral y no una reserva (§3.7.1), así que no existe nada entre el 100 % y el 0 %. Un degradado ahí mentiría, porque daría a entender que un tripulante está medio incapacitado cuando el modelo solo conoce dos estados. Gris claro y no blanco puro, que se lava contra el blindaje translúcido.
 
-Cuatro mallas de proyectil, por revolución de un perfil: PzGr. 39, PzGr. 40 completo, el núcleo desnudo del PzGr. 40 y el Gr. 38 Hl/C. En el perforation de la primera capa el render cambia la malla del APCR por la del núcleo, porque el penetrador es el núcleo de tungsteno y no el casquillo (§3.5); mostrar los 75 mm enteros cruzando el interior contradiría la propia física del modelo. Son objetos puramente visuales, sin Thickness_mm, sin Module_Type y sin material de §2.3, y van en ficheros aparte (models/PzGr_39.glb y compañía), no dentro del vehículo.
+Cuatro mallas de proyectil, por revolución de un perfil: PzGr. 39, PzGr. 40 completo, el núcleo desnudo del PzGr. 40 y el Gr. 38 Hl/C. En el perforation de la primera capa el render cambia la malla del APCR por la del núcleo, porque el penetrador es el núcleo de tungsteno y no el casquillo (§3.5); mostrar los 75 mm enteros cruzando el interior contradiría la propia física del modelo. Son objetos puramente visuales, sin Thickness_mm, sin Module_Type y sin material de §2.3, y van en ficheros aparte, uno por malla, no dentro del vehículo. El nombre del fichero es el shell_id de shells.csv más .glb, para que el motor cargue la malla a partir del identificador del proyectil sin tabla de equivalencias: models/PzGr39_75_L48.glb, models/PzGr40_75_L48.glb y models/Gr38HlC_75_L48.glb. El núcleo desnudo del PzGr. 40 todavía no está modelado.
+
+Convenio de ejes de esas mallas: la punta del proyectil está en el origen (0, 0, 0) y el cuerpo se extiende hacia -Y, de modo que el eje de revolución es el eje Y y la malla queda centrada en X y Z. Así el motor coloca la malla directamente en el pos de un evento de §7.1, que es el punto de intersección del rayo con la superficie, y la punta cae sobre el impacto sin ningún desfase que compensar. Unidades en metros, las mismas del vehículo.
 
 ## 8. Validación
 
@@ -647,12 +649,10 @@ Modelo y código
 
 Modelo 3D
 
-* [ ] Resolver las ocho piezas no convexas (§3.1): ARM_Addon_L y _R, ARM_Front_Top_Plate, ARM_Lower_Side_L_Plate y _R_Plate, ARM_Upper_Back_Plate, MOD_Barrel y MOD_Engine.
 * [ ] Vaciar las ruedas del tren de rodaje o darles material propio (§9), y modelar los rodillos de retorno y la suspensión.
 * [ ] Separar el Health de piernas y torso en el glb, o quitar ese argumento de §3.7.1.
-* [ ] Aplicar la escala del mantelete en Blender: la geometría da 47,01 y 46,01 mm contra los 50 declarados.
 * [ ] Dar fuente a los Health de Track, 5 kJ la cinta y 20 kJ la motriz (§3.7.1).
-* [ ] Perfiles y cotas reales de los cuatro proyectiles para modelar las mallas de §7.2: longitud, calibre, radio de ojiva y dimensiones del núcleo del PzGr. 40. Es investigación de datos, no modelado.
+* [ ] Cotas reales para las mallas de §7.2. Resueltas las del PzGr. 39 y el PzGr. 40 con los dibujos 13 C 1235 y 13 C 1236 (§2.1). Falta un dibujo acotado del Gr. 38 Hl/C: la malla actual sale de una figura comparativa sin cotas, escalada suponiendo que el ancho máximo es el calibre, así que su longitud de 343 mm es [S]. Faltan también las cotas del núcleo del PzGr. 40, que 13 C 1236 dibuja en corte.
 * [ ] Comprobar que validate_glb.py ignora los objetos puramente visuales de §7.2, que no llevan Thickness_mm ni Module_Type, o darles un prefijo VIS_ que el validador salte.
 
 Alcance
