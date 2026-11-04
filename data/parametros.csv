@@ -1,0 +1,4 @@
+key,value,unit,source
+n_de_marre,"1,428",,"§2.2.1 [D]: media medida de P ~ v^n cruzando velocity.csv con penetration.csv"
+contact_gap_mm,"1,0",mm,"§3.2 [S]: hueco perpendicular por debajo del cual dos objetos forman una sola capa"
+rho_acero,7850,kg/m3,"§3.5 [D]: densidad del acero, para la masa del tapon"

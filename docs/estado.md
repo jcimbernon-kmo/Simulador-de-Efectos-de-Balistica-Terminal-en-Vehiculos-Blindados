@@ -1,8 +1,8 @@
 # Estado y lista de verificación
 
-Revisión del 29/10/2026, 15:15. Generada comprobando el repositorio, los CSV con
-`tools/ballistic_data.py` y el modelo con `tools/validate_glb.py` (281 objetos: 2 errores,
-20 avisos).
+Revisión del 29/10/2026, 19:50. Generada comprobando el repositorio, los CSV con
+`tools/ballistic_data.py`, el modelo con `tools/validate_glb.py` (281 objetos: 2 errores,
+20 avisos) y el núcleo con `tools/disparo.py --selftest`.
 
 ---
 
@@ -155,6 +155,11 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
   - Alternativa sin pérdida: mover los diecinueve a `tools/blender/` y dejar en `tools/` las tres
     herramientas más `raycast_test.py`. Mismo orden visual, y el criterio pasa a ser «qué dolería
     perder» en vez de «qué se ejecuta fuera de Blender».
+  - **Dejó de ser una preferencia el 29/10**: ahora el núcleo está en `tools/disparo.py`, que
+    importa `ballistic_data` y `validate_glb`. Con el `.gitignore` actual **`disparo.py` tampoco
+    sube**, así que el repositorio subiría los datos y el modelo pero no el núcleo de cálculo. La
+    regla de «solo las tres herramientas» se escribió antes de que el núcleo existiera y hay que
+    rehacerla: como mínimo añadir `disparo.py` y `raycast_test.py`.
 
 ### Resuelto
 - [x] `Claude outputs/` borrada.
@@ -165,10 +170,9 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 - [x] `ARM__Roadwheel_*` renombradas sin el doble guión bajo (29/10).
 
 ### Pendiente
-- [ ] `README.md` tiene 72 bytes y es solo el título entrecomillado. Debería decir qué es el
-  proyecto, cómo se ejecutan las tres herramientas y en qué estado está. **Con la solicitud al
-  tutor ya entregada, es lo primero que va a abrir cuando os reunáis**, y con el repositorio recién
-  reestructurado es el momento de escribirlo.
+- [x] **`README.md` escrito** (29/10): qué es el proyecto, el estado con enlace a este fichero, la
+  tabla de carpetas, cómo se ejecutan las herramientas con sus `--selftest` y la nota de no editar
+  los CSV con Excel.
 - [ ] `tools/spall.py` y `ballistic_data.spall_fraction()` implementan la misma fórmula de §3.5 en
   dos sitios. Borrar el primero, que era un borrador. Contradice el principio de §1 del modelo.
 - [ ] `tools/crear_issues.sh` y `tools/create_issues.py` siguen siendo dos versiones de lo mismo.
@@ -180,11 +184,25 @@ imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y las tres herrami
 
 ## 5. Código del núcleo
 
-Nada empezado, y sigue siendo correcto: estaba previsto para mediados de noviembre. Lo que hay son
-las herramientas de apoyo y los datos, que ya están listos.
+**El disparo de extremo a extremo funciona desde el 29/10**, adelantado sobre el plan de
+`tfg.md`, que lo situaba a mediados de noviembre.
 
+- [x] **`tools/disparo.py`** — `.glb` + tablas → tramos (§3.1) → capas (§3.2) → perforación (§3.4) →
+  energía (§3.4.2) → tapón (§3.5 y §3.6) → daño a módulos (§3.7) → agregación (§3.7.3) → línea
+  temporal de §7.1 en JSON. Python puro, sin dependencias y sin motor.
+- [x] **Una sola cuenta de estado: la energía, y la capacidad se deduce de ella** (§3.4.2).
+  Lo forzó el primer disparo real: con las dos cuentas en paralelo el núcleo se quedaba sin energía
+  en el tercer cartucho y seguía perforando con 56 mm de capacidad, saliendo por la plancha trasera
+  con cero julios a los 2 932 ms. Con la cuenta única sale con 107 kJ y 16,7 mm a los 13,0 ms, e
+  incapacita a conductor y artillero en vez de solo al conductor. La rama `doc` y el parámetro
+  `--modelo` se han eliminado del código.
+- [x] **`σ_RHA` y `k_absorcion` fuera del modelo del núcleo**: un parámetro libre menos en §6, y
+  caen con ellos las dos limitaciones que §3.7 declaraba sobre ese anclaje. `sigma_rha()` se queda
+  en el fichero solo como anclaje futuro de `sigma_fragmento`.
+- [x] **`data/parametros.csv`** — `n_de_marre`, `contact_gap_mm` y `rho_acero`. Cumple el principio
+  de §1 de que ninguna constante física viva dentro de un `.py`.
 - [x] `tools/raycast_test.py` — caso de regresión verificado: 81,00 mm y 9,00° contra
-  `ARM_Upper_Front_Plate`.
+  `ARM_Upper_Front_Plate`, y reejecutado desde `disparo.py --selftest`.
 - [x] `tools/ballistic_data.py` — carga las cuatro tablas, valida referencias cruzadas, interpola
   penetración y velocidad, y da energía de impacto y reparto de astillado. `--selftest` pasa.
 - [x] `tools/validate_glb.py` — validación completa del modelo, con `--selftest`.
@@ -194,15 +212,38 @@ las herramientas de apoyo y los datos, que ya están listos.
 - [x] `docs/modelo_balistico.md` — diseño del núcleo, con cada afirmación marcada como decidida,
   supuesta o abierta. Incluye ya el esquema JSON de la línea temporal (§7.1) y las reglas de
   reproducción (§7.2).
-- [x] **σ_RHA recalculado con la velocidad real de impacto** (29/10): 3,10 GPa en vez de 3,21. Y un
-  contraste independiente que merece ir a la memoria: el PzGr. 40, con cinco veces menos energía
-  penetrante y un núcleo de 28 mm, da 2,80 GPa. Dos proyectiles muy distintos coinciden dentro de un
-  10 % sin que σ se haya ajustado a ninguno.
+- [x] **σ_RHA recalculado con la velocidad real de impacto** (29/10): 3,10 GPa en vez de 3,21, con
+  un contraste independiente que merece ir a la memoria: el PzGr. 40, con cinco veces menos energía
+  penetrante y un núcleo de 28 mm, daba 2,80 GPa. Dos proyectiles muy distintos coincidían dentro
+  de un 10 % sin que σ se hubiera ajustado a ninguno. **El núcleo ya no la usa**, pero el contraste
+  sigue valiendo como argumento de que el anclaje de las tablas es consistente.
+
+### Pruebas que pasan
+- `tools/disparo.py --selftest`: la ida y vuelta con `penetration.csv` (19 celdas de los dos
+  proyectiles cinéticos: perfora un 0,0001 % por debajo del espesor tabulado y se queda clavado un
+  0,1 % por encima) y la regresión de §8 sobre el modelo real (81,00 mm y 9,00°).
+- Invariante nuevo: ningún disparo puede acabar sin energía y con capacidad disponible. Es lo que
+  fallaba antes, y la prueba está para detectar que alguien reintroduzca una segunda ley.
+- `tools/ballistic_data.py --selftest` y `tools/validate_glb.py --selftest`.
+
+### Pendiente en el núcleo
+- [ ] **Rebote (§3.3) y fragmentos (§3.6).** Ninguno de los dos está, así que el único daño que se
+  calcula hoy es el del núcleo. Las dos cosas necesitan `data/fragmentation.csv`
+  (`n_fragments`, `cone_half_angle`, `ricochet_angle`), que no existe.
+- [ ] **Fijar `sigma_fragmento`**, el único coeficiente de pérdida que queda tras unificar las
+  cuentas, y que solo afecta a los fragmentos.
+- [ ] **Recalibrar el `Health` de `Engine` (300 kJ) y `Transmission` (150 kJ)**: se fijaron con la
+  ley lineal de `σ_RHA`, que ya no se usa. El «núcleo de 75 mm, 10 cm dentro del motor» de §3.7.1
+  pasa de 425 kJ a unos 225 kJ, así que los dos valores están calibrados contra una ley muerta.
+- [ ] **El material `Engine` (0,10) de `materials.csv` no lo usa nadie**: las tres piezas del motor
+  van con `Cast_Iron` (0,30), y los 425 kJ de §3.7.1 cuadran con 0,30. Lo que sobra es la fila.
+  Mientras esté, alguien la pondrá por el nombre.
+- [ ] APHE (§4) y HEAT (§5) sin empezar. `disparo.py` avisa de que la carga y la espoleta del
+  PzGr. 39 no se simulan.
 
 ### Siguiente hito
-El disparo completo de extremo a extremo, en Python puro y sin gráficos, como marca `tfg.md`:
-rayo → capas → cadena de capacidad → energía residual → tapón → fragmentos → daño a módulos → JSON
-de §7.1. Todas las piezas están decididas y los datos están cargados.
+Los fragmentos, que es lo que falta para que el daño calculado se parezca al real. Requiere primero
+`fragmentation.csv` y decidir la distribución de tamaños de Mott.
 
 ## 6. Proyecto
 
