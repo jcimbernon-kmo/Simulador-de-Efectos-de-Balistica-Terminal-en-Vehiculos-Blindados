@@ -45,8 +45,11 @@ partir de aquí la fecha se toma del reloj y no de memoria.
   tapón del APCR salía 7,2 veces de más.
 - [x] Tipo del PzGr. 39 renombrado a `APCBC-HE` (29/10). No afecta al código: lo único que mira
   `type` es la rama del APCR.
-- [ ] **`mass_kg` del PzGr. 40: el dibujo 13 C 1236 da 4,75 kg y el CSV 4,10.** Hay que elegir uno
-  y anotar la fuente. El del PzGr. 39 sí cuadra (6,8 kg en el dibujo 13 C 1235), aunque el explosivo
+- [x] **`mass_kg` del PzGr. 40 se queda en 4,10 kg** (04/11). Sale de panzerworld.com (ficha del
+  7,5 cm Pak 39 L/48, que comparte munición con el KwK 40 L/48), que cita a Jentz, Doyle y Badrocke,
+  *New Vanguard 36*, y a Pawlas, *Waffen-Revue W 127*, sin decir cuál da el peso. El dibujo
+  13 C 1236 (PzGr. 40/42) da 4,75 kg. No cambia ningún resultado: para el APCR el cálculo solo usa
+  `core_mass_kg`. Falta anotarlo en `sources.md`. El del PzGr. 39 sí cuadra (6,8 kg en el dibujo 13 C 1235), aunque el explosivo
   del dibujo son 17 g y el CSV tiene 16,4.
 - [ ] **Fuente para los 28 mm del núcleo.** El dibujo 13 C 1236 dibuja el núcleo en corte, con la
   ojiva de radio 45: medirlo ahí convierte el supuesto en dato. No está en la ficha del KwK 40, que da masa, velocidad
@@ -146,7 +149,8 @@ aceptados.
   `models/PzGr39_75_L48.glb` (278 mm), `models/PzGr40_75_L48.glb` (256 mm) y
   `models/Gr38HlC_75_L48.glb` (343 mm). Las tres estancas y con las normales hacia fuera.
 - [x] Convenio de ejes (§7.2): punta en (0, 0, 0), cuerpo hacia -Y, centradas en X y Z, metros.
-- [ ] Núcleo desnudo del PzGr. 40, que §7.2 necesita para el cambio de malla en la perforación.
+- [x] Núcleo del PzGr. 40 sin malla propia, por simplificación (04/11): en la primera perforación la
+  malla desaparece y el núcleo sigue como rayo (§7.2).
 - [ ] Gr. 38 Hl/C: sale de una figura sin cotas, así que los 343 mm son [S]. No tiene bandas de
   forzamiento y el cuerpo es un cono de ⌀76,3 a ⌀71,5 en vez de un cilindro.
 - [ ] El ⌀ 74,4 del PzGr. 39 está aplicado a las bandas y no al cuerpo (cuerpo a 70,7 mm). Aceptado
