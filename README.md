@@ -6,7 +6,7 @@ Primer vehículo: Pz.Kpfw. IV Ausf. H. Proyectiles: PzGr. 39 (APCBC-HE), PzGr. 4
 
 ## Estado
 
-**El cálculo de un disparo funciona de extremo a extremo**, sin motor gráfico: `tools/disparo.py` lanza un rayo contra el modelo 3D, calcula perforación, energía residual y daño a los módulos, y devuelve la línea temporal del impacto en JSON. Falta el rebote, los fragmentos, el explosivo y la carga hueca.
+**El cálculo de un disparo funciona de extremo a extremo**, sin motor gráfico: `tools/disparo.py` lanza un rayo contra el modelo 3D, calcula perforación, energía residual, fragmentos y daño a los módulos, y devuelve la línea temporal del impacto en JSON. Los fragmentos del tapón están en una versión provisional; falta el rebote, el explosivo y la carga hueca.
 
 El motor gráfico está sin elegir (recomendado Unity) y `src/` sigue vacío. El estado detallado, con los problemas abiertos, está en [`docs/estado.md`](docs/estado.md).
 
@@ -32,7 +32,7 @@ python tools/disparo.py                          # disparo de prueba con resumen
 python tools/disparo.py --shell PzGr40_75_L48 --distance 500 --out disparo.json
 
 python tools/ballistic_data.py --selftest        # autoprueba de la carga de datos
-python tools/ballistic_data.py data/             # lista lo cargado y avisa de huecos
+python tools/ballistic_data.py data/             # lista lo cargado
 
 python tools/validate_glb.py --selftest          # autoprueba del validador
 python tools/validate_glb.py "models/Pz IV H.glb" data

@@ -20,7 +20,7 @@ description: "TFG de Fata — simulador de perforación de blindaje de vehículo
 
 Programa para PC en 3D que simula el impacto de proyectiles contra vehículos blindados de la Segunda Guerra Mundial.
 
-El vehículo es un **modelo estático**: no se mueve, no hay IA. El usuario lo gira con el ratón para cambiar el ángulo de ataque y apunta a una sección concreta; el ratón marca el punto de disparo. Elige proyectil y distancia de impacto.
+El vehículo es un **modelo estático**: no se mueve, no hay IA. El usuario lo gira con el ratón para cambiar el ángulo de ataque y apunta a una sección concreta; el ratón marca el punto de disparo. Elige cañón, proyectil y distancia de impacto. El vehículo que dispara no se representa *(2026-11-04)*.
 
 Al disparar, el programa calcula el evento completo y lo reproduce en **cámara lenta**: se ve el proyectil atravesar el blindaje, fragmentarse, dañar módulos internos y, si lleva explosivo, detonar dentro. Una **vista de rayos X** muestra el interior y el daño causado, e indica si la tripulación ha sido eliminada.
 
@@ -157,7 +157,7 @@ Más los laterales `ARM_hull_side_L` / `ARM_hull_side_R`, de 30 mm, generados po
 ### 5.5 Alcance y plan
 
 - Presupuesto estimado: ~450 h − ~100 de memoria − ~50 de aprendizaje ≈ **300 h de desarrollo**. Modelado: ~60-80 h el primer vehículo, ~40-50 el segundo.
-- **2 vehículos completos** de blindaje contrastado (uno con placas inclinadas tipo T-34, otro más cuadrado como el Pz IV). Un tercero solo si hay margen.
+- **Mínimo 1 vehículo**, que es lo que exige la solicitud y cubre el Pz IV. Un segundo, de placas inclinadas y torreta fundida (candidato T-44, o T-34-85 si faltan planos), solo si hay margen después de fragmentos, APHE y HEAT *(actualizado 2026-11-04)*.
 - **~8 variantes de proyectil** en 2-3 calibres, al menos una por tipo. Son 3 mecánicas (cinético macizo, cinético con explosivo, carga hueca); el resto son datos.
 - Calendario orientativo (mediados de noviembre a mayo): 1-3 prototipo; 4-8 vehículo 1 con penetración, rebote y rayos X; 9-13 fragmentos, daño a módulos y APHE; 14-17 HEAT y vehículo 2; 18-21 validación, interfaz y pulido; 22-26 memoria y margen.
 - **Validación como valor académico:** pruebas automáticas que comparen la penetración simulada con los resultados de las tablas.

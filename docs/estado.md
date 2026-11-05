@@ -2,7 +2,7 @@
 
 Revisión del 04/11/2026. Generada comprobando el repositorio, los CSV con
 `tools/ballistic_data.py`, el modelo con `tools/validate_glb.py` (281 objetos: 2 errores,
-20 avisos) y el núcleo con `tools/disparo.py --selftest`.
+3 avisos) y el núcleo con `tools/disparo.py --selftest`.
 
 Aviso sobre las fechas: la revisión anterior se tituló «29/10, 19:50», pero el fichero se guardó el
 30/10 a las 21:57. Las marcas «(29/10)» de este documento pueden corresponder al 29 o al 30. A
@@ -49,7 +49,8 @@ partir de aquí la fecha se toma del reloj y no de memoria.
   7,5 cm Pak 39 L/48, que comparte munición con el KwK 40 L/48), que cita a Jentz, Doyle y Badrocke,
   *New Vanguard 36*, y a Pawlas, *Waffen-Revue W 127*, sin decir cuál da el peso. El dibujo
   13 C 1236 (PzGr. 40/42) da 4,75 kg. No cambia ningún resultado: para el APCR el cálculo solo usa
-  `core_mass_kg`. Falta anotarlo en `sources.md`. El del PzGr. 39 sí cuadra (6,8 kg en el dibujo 13 C 1235), aunque el explosivo
+  `core_mass_kg`. Falta anotarlo en `sources.md`. Ojo: `sources.md` ya cita la ficha del **KwK 40** de la misma web; si
+  da también 4,10 kg es mejor fuente, porque no depende de que el Pak 39 comparta munición. El del PzGr. 39 sí cuadra (6,8 kg en el dibujo 13 C 1235), aunque el explosivo
   del dibujo son 17 g y el CSV tiene 16,4.
 - [ ] **Fuente para los 28 mm del núcleo.** El dibujo 13 C 1236 dibuja el núcleo en corte, con la
   ojiva de radio 45: medirlo ahí convierte el supuesto en dato. No está en la ficha del KwK 40, que da masa, velocidad
@@ -79,8 +80,8 @@ partir de aquí la fecha se toma del reloj y no de memoria.
 - [ ] Columna `source_id`.
 
 ### `materials.csv`
-- [x] `resistance` en los diez materiales.
-- [x] **Columna `spall` rellenada** (28/10). Siete de los diez valores son 0 o 1 por una razón
+- [x] `resistance` en los nueve materiales.
+- [x] **Columna `spall` rellenada** (28/10). Seis de los nueve valores son 0 o 1 por una razón
   física declarable; los discutibles son `Cast_Iron` (1,5), `Track` (0,3) y `Wheel` (0,13).
 - [x] **Material `Wheel` añadido y asignado a las veinte ruedas** (29/10).
 - [ ] Fijar su `resistance`. Ver §1.
@@ -95,8 +96,9 @@ partir de aquí la fecha se toma del reloj y no de memoria.
 
 ## 3. Modelo 3D
 
-`tools/validate_glb.py`: **2 errores, 20 avisos** sobre 281 objetos. Los dos errores están
-aceptados.
+`tools/validate_glb.py`: **2 errores, 3 avisos** sobre 281 objetos. Los dos errores están
+aceptados. Desde el 05/11 el validador ya no avisa de piezas descentradas en X ni de nombres
+`.001`, que eran 17 de los 20 avisos anteriores; los tres que quedan son las caras alabeadas.
 
 ### Errores — los dos aceptados
 - [x] `MOD_Gunner_Legs` con `MOD_Gunner_Torso` (40,0 mm) y `MOD_Loader_Legs` con
@@ -162,16 +164,14 @@ aceptados.
 ### Reestructuración del 29/10
 El repositorio remoto se vacía y se vuelve a subir con esta regla: **todo lo de `L1U/` menos
 `CLAUDE.md`**, y en `tools/` solo lo que corre fuera de Blender (`validate_glb.py`,
-`ballistic_data.py`, `revisar_vertices.py`, `disparo.py` y `raycast_test.py`). Implementado en
-`.gitignore`.
+`ballistic_data.py`, `revisar_vertices.py` y `disparo.py`). Implementado en `.gitignore`.
+`raycast_test.py` se queda fuera porque `disparo.py --selftest` ya cubre su regresión.
 
-Lo que sube: `data/` (5 ficheros), `docs/` (2), `models/` (el `.blend`, el `.glb` y las dos
-imágenes de referencia), `README.md`, `tfg.md`, `.gitignore` y esas cinco herramientas. Algo más de
-1 MB en total.
+Lo que sube: `data/` (6 ficheros), `docs/` (2), `models/` (vehículo, tres proyectiles y los planos e
+imágenes de referencia), `README.md`, `tfg.md`, `.gitignore`, esas cuatro herramientas y los dos
+generadores que ya estaban en el índice.
 
-La regla se corrigió el 31/10: el `.gitignore` añade `!tools/disparo.py` (el núcleo de cálculo) y
-`!tools/raycast_test.py` (el caso de regresión de §8), que la versión anterior dejaba fuera. Con eso
-el repositorio ya contiene datos, modelo, núcleo y una prueba.
+Con `!tools/disparo.py` el repositorio contiene datos, modelo, núcleo y su autoprueba.
 
 - [ ] **[A] Punto abierto: los diecinueve generadores de Blender se quedan fuera.**
   - Los diecinueve scripts de Blender son **80 KB** —un tercio de lo que pesa un solo `.blend`— y
@@ -202,7 +202,7 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
   los que salieron las medidas, así que merecen nombres descriptivos, no borrarse.
 - [ ] `tfg.md` sigue en la raíz; su sitio es `docs/`.
 - [ ] `Pz IV H.blend` / `.glb`: sin espacios en el nombre.
-- [ ] `src/` está vacía y git no versiona directorios vacíos. No pasa nada hasta noviembre.
+- [ ] `src/` está vacía y git no versiona directorios vacíos. El simulador con motor irá ahí cuando se elija motor.
 
 ## 5. Código del núcleo
 
@@ -210,7 +210,7 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
 `tfg.md`, que lo situaba a mediados de noviembre.
 
 - [x] **`tools/disparo.py`** — `.glb` + tablas → tramos (§3.1) → capas (§3.2) → perforación (§3.4) →
-  energía (§3.4.2) → tapón (§3.5 y §3.6) → daño a módulos (§3.7) → agregación (§3.7.3) → línea
+  energía (§3.4.2) → tapón y fragmentos (§3.5 y §3.6) → daño a módulos (§3.7) → agregación (§3.7.3) → línea
   temporal de §7.1 en JSON. Python puro, sin dependencias y sin motor.
 - [x] **Una sola cuenta de estado: la energía, y la capacidad se deduce de ella** (§3.4.2).
   Lo forzó el primer disparo real: con las dos cuentas en paralelo el núcleo se quedaba sin energía
@@ -221,13 +221,20 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
 - [x] **`σ_RHA` y `k_absorcion` fuera del modelo del núcleo**: un parámetro libre menos en §6, y
   caen con ellos las dos limitaciones que §3.7 declaraba sobre ese anclaje. `sigma_rha()` se queda
   en el fichero solo como anclaje futuro de `sigma_fragmento`.
-- [x] **`data/parametros.csv`** — `n_de_marre`, `contact_gap_mm` y `rho_acero`. Cumple el principio
+- [x] **`data/parametros.csv`** — `n_de_marre`, `contact_gap_mm`, `rho_acero` y los cuatro de los
+  fragmentos (`masa_fragmento_g`, `cono_fragmentos_deg`, `sigma_fragmento_GPa`,
+  `energia_minima_fragmento_J`). Cumple el principio
   de §1 de que ninguna constante física viva dentro de un `.py`.
 - [x] `tools/raycast_test.py` — caso de regresión verificado: 81,00 mm y 9,00° contra
   `ARM_Upper_Front_Plate`, y reejecutado desde `disparo.py --selftest`.
-- [x] `tools/ballistic_data.py` — carga las cuatro tablas, valida referencias cruzadas, interpola
-  penetración y velocidad, y da energía de impacto y reparto de astillado. `--selftest` pasa.
-- [x] `tools/validate_glb.py` — validación completa del modelo, con `--selftest`.
+- [x] `tools/ballistic_data.py` — carga las cuatro tablas, interpola penetración y velocidad y da la
+  energía de impacto. Solo datos: la masa del tapón la calcula `disparo.py` con `rho_acero` de
+  `parametros.csv`. Simplificado el 05/11 de 456 a 178 líneas, sin los avisos de plausibilidad;
+  la única comprobación que queda es que un APCR traiga los datos del núcleo. `--selftest` pasa.
+- [x] `tools/validate_glb.py` — validación completa del modelo, con `--selftest`. Simplificado el
+  05/11 de 406 a 312 líneas: fuera los avisos de simetría en X y de nombres `.001`, y la búsqueda
+  automática de rutas. Las comprobaciones que cuentan siguen igual, y da la misma tabla y los mismos
+  errores que antes.
 - [x] `tools/revisar_vertices.py` — duplicados, caras degeneradas y aristas sueltas.
 - [x] Generadores: torreta, anillo, mejillas, cúpula, lateral de torreta, orugas, munición,
   tripulación, módulos, freno de boca, cañón y motor.
@@ -237,10 +244,11 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
   42 marcas `[D]`, el historial de cambios y las fechas por línea; §3.4.3 fundida en §3.4.2 y §10
   recortada a la mitad. Se conservan las 23 marcas `[S]`, las 12 `[A]` y todas las fórmulas que usa
   el código. Pendiente de repaso por Fata de §3 en adelante.
-- [x] **σ_RHA recalculado con la velocidad real de impacto** (29/10): 3,10 GPa en vez de 3,21, con
-  un contraste independiente que merece ir a la memoria: el PzGr. 40, con cinco veces menos energía
-  penetrante y un núcleo de 28 mm, daba 2,80 GPa. Dos proyectiles muy distintos coincidían dentro
-  de un 10 % sin que σ se hubiera ajustado a ninguno. **El núcleo ya no la usa**, pero el contraste
+- [x] **σ_RHA recalculado con la velocidad real de impacto** (29/10): 3,10 GPa con el PzGr. 39, y un
+  contraste independiente que merece ir a la memoria: el PzGr. 40, con cinco veces menos energía
+  penetrante y un núcleo de 28 mm, da 3,21 GPa (2,80 GPa si el núcleo fuera de 30 mm). Dos
+  proyectiles muy distintos coinciden dentro de un 3,5 % sin que σ se haya ajustado a ninguno
+  (corregido el 04/11: la revisión anterior decía 2,80 GPa y un 10 %). **El núcleo ya no la usa**, pero el contraste
   sigue valiendo como argumento de que el anclaje de las tablas es consistente.
 
 ### Pruebas que pasan
@@ -252,14 +260,16 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
 - Barrido de **1416 disparos** sobre el modelo real (30/10): ninguna incoherencia de balance. Salió
   de ahí el caso declarado en §9 de un rayo que recorre 245 mm por dentro de una chapa de 8 mm al
   entrar por el canto, que es geometría correcta y no un fallo del cálculo.
+- Fragmentos: el reparto suma exactamente la energía del tapón, la misma semilla da el mismo
+  resultado, y un tripulante fuera del eje del disparo lo incapacitan los fragmentos y no el núcleo.
 - `tools/ballistic_data.py --selftest` y `tools/validate_glb.py --selftest`.
 
 ### Pendiente en el núcleo
-- [ ] **Rebote (§3.3) y fragmentos (§3.6).** Ninguno de los dos está, así que el único daño que se
-  calcula hoy es el del núcleo. Las dos cosas necesitan `data/fragmentation.csv`
-  (`n_fragments`, `cone_half_angle`, `ricochet_angle`), que no existe.
-- [ ] **Fijar `sigma_fragmento`**, el único coeficiente de pérdida que queda tras unificar las
-  cuentas, y que solo afecta a los fragmentos.
+- [x] **Fragmentos del tapón (§3.6), versión provisional** (04/11): 5 g, cono de 30°, σ de 3,10 GPa y
+  corte en 1 J, todo `[S]` en `parametros.csv`. En el disparo de referencia dejan fuera a cuatro de
+  los cinco tripulantes, frente a dos con el núcleo solo.
+- [ ] **Rebote (§3.3).** Necesitará un umbral de ángulo por tipo de proyectil.
+- [ ] **Dar fuente a `sigma_fragmento`, a la masa de 5 g y al cono de 30°**, hoy provisionales.
 - [ ] **Recalibrar el `Health` de `Engine` (300 kJ) y `Transmission` (150 kJ)**: se fijaron con la
   ley lineal de `σ_RHA`, que ya no se usa. El «núcleo de 75 mm, 10 cm dentro del motor» de §3.7.1
   pasa de 425 kJ a unos 225 kJ, así que los dos valores están calibrados contra una ley muerta.
@@ -271,8 +281,7 @@ el repositorio ya contiene datos, modelo, núcleo y una prueba.
   PzGr. 39 no se simulan.
 
 ### Siguiente hito
-Los fragmentos, que es lo que falta para que el daño calculado se parezca al real. Requiere primero
-`fragmentation.csv` y decidir la distribución de tamaños de Mott.
+El rebote (§3.3), y después el APHE (§4), que necesita resolver antes el `fuze_delay_ms`.
 
 ## 6. Proyecto
 
