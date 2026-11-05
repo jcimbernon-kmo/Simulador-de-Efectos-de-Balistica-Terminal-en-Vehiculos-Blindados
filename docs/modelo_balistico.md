@@ -4,7 +4,7 @@ Documento de diseño del núcleo de cálculo. Define qué se simula, con qué da
 
 Convención: **[S]** supuesto, pendiente de fuente/verificación · **[A]** abierto.
 
-Última revisión: 2026-10-30 (7ª).
+Última revisión: 2026-11-04 (8ª).
 
 ---
 ## 1. Principios
@@ -26,7 +26,7 @@ El disparo se calcula entero de golpe y devuelve una línea temporal de eventos,
 Datos fuera del código, todo sale de los ficheros de data/ y del modelo glb:
 1. Cambiar un vehículo, un proyectil o un criterio no toca código.
 2. El análisis de sensibilidad (§6) consiste en variar esos ficheros, así que tienen que ser el único sitio donde están los números.
-3. Valores y datos cambiantes.
+3. Un dato que cambie con una fuente nueva se corrige en un solo sitio.
 ## 2. Datos de entrada
 
 ### 2.1 Proyectil - data/shells.csv
@@ -56,8 +56,8 @@ penetrating_diameter_mm = core_diameter_mm o caliber_mm  si está vacía
 Lo que cuesta confundirlos: contra la placa frontal de 80 mm, usar 75 mm en vez de 28 multiplica
 la masa de tapón de §3.5 por (75/28)² = 7,2, y la fracción de astillado del PzGr. 40 pasa de 0,313
 a 0,765. El número equivocado sale plausible, que es lo que lo hace peligroso, así que
-ballistic_data.spall() saca el diámetro del propio proyectil en vez de dejarlo a elección de
-quien llama.
+disparo.py saca el diámetro del propio proyectil (penetrating_diameter_mm) en vez de dejarlo a
+elección de quien llama, y ballistic_data.py se niega a cargar un APCR sin core_diameter_mm.
 
 [S] El core_diameter_mm del PzGr. 40, 28 mm, no está localizado en ninguna fuente: la ficha del KwK 40 da masa, velocidad y penetración pero no toca el núcleo. Se deriva de core_mass_kg = 0,85 kg con carburo de tungsteno a ~15 000 kg/m³ suponiendo un núcleo cilíndrico, lo que da 27-31 mm según la esbeltez que se adopte (L/d de 3,5 a 2,5); 28 mm corresponde a L/d ≈ 3,3. Lo supuesto es la esbeltez, no el diámetro. Pendiente de fuente en §10.
 
@@ -81,7 +81,7 @@ Hace falta para evaluar la perforación de **cualquier capa que no sea la primer
 
 El modelo de arrastre v(x) = v₀·e^{-Kx}, con K = ρ·Cd·A/(2m), queda como respaldo para proyectiles sin tabla, y como el método con el que se obtuvieron los puntos que faltaban del PzGr. 39.
 
-| Distancia | m/s | Origen |
+| Distancia | m/s (PzGr. 39) | Origen |
 |---|---|---|
 | 100 m | 738 | del modelo |
 | 500 m | 691 | medido |
@@ -91,7 +91,7 @@ El modelo de arrastre v(x) = v₀·e^{-Kx}, con K = ρ·Cd·A/(2m), queda como r
 
 El Cd despejado tramo a tramo no es constante:
 
-| Tramo | Cd implicado |
+| Tramo (PzGr. 40) | Cd implicado |
 |---|---|
 | 0–100 m | 0,413 |
 | 100–500 m | 0,515 |
@@ -137,7 +137,7 @@ Una sola tabla para blindaje y módulos. El blindaje de referencia es RHA, con c
 
 | Campo | Notas |
 |---|---|
-| id | RHA, Steel, Track, Wheel, Flesh, Cast_Iron, Ammo, Engine, Gasoline, Diesel. Mayúscula inicial |
+| id | RHA, Steel, Track, Wheel, Flesh, Cast_Iron, Ammo, Gasoline, Diesel. Mayúscula inicial |
 | resistance | Resistencia relativa a RHA, multiplica la longitud de camino para obtener el equivalente en RHA |
 | spall | Multiplicador de masa de tapón relativo a RHA, que es 1,0. |
 | source_id | clave en data/sources.md, o supuesto |
@@ -145,7 +145,7 @@ Una sola tabla para blindaje y módulos. El blindaje de referencia es RHA, con c
 El nivel absoluto del astillado lo fija Recht-Ipson (§3.5 y §3.6) <br>
 La columna cuenta cuánta masa de tapón arranca este material comparado con el RHA, con la misma convención relativa que resistance.
 
-Siete de los nueve valores son 0 o 1 por una razón física declarable, los líquidos y la carne no arrancan tapón ni lanzan fragmentos metálicos, un impacto en munición lo resuelve la detonación de §4, y no hay base para distinguir Steel del RHA en esto, así que fingir un 0,8 sería ruido. Los 2 valores discutibles son:
+Seis de los nueve valores son 0 o 1 por una razón física declarable, los líquidos y la carne no arrancan tapón ni lanzan fragmentos metálicos, un impacto en munición lo resuelve la detonación de §4, y no hay base para distinguir Steel del RHA en esto, así que fingir un 0,8 sería ruido. Los discutibles son tres: Cast_Iron y Track, que se explican aquí, y Wheel, que va en el párrafo siguiente porque sus dos columnas se contradicen:
 
 1. Cast_Iron a 1,5: frágil, rompe en fragmentos en vez de sacar un tapón limpio, así que la
 masa que sale por detrás es mayor que la del cilindro geométrico.
@@ -166,7 +166,7 @@ Placas (ARM_*):
 * Armour_Material (texto, id de materiales)
 
 Módulos (MOD_*):
-* Module_Type (mayúscula inicial: Crew, Engine, Transmission, Ammo, Fuel, Gun)
+* Module_Type (mayúscula inicial: Crew, Engine, Transmission, Ammo, Fuel, Gun, Track)
 * Health (float)
 * Armour_Material (texto, misma tabla)
 
@@ -188,7 +188,7 @@ Solución general, facetar. Todo lo curvo se parte en tramos casi planos, sufici
 
 Las piezas se generan como intersección de semiespacios, no uniendo vértices. Cuatro puntos en el espacio no son coplanarios salvo que se les obligue, así que una placa construida a mano sale con las caras grandes alabeadas, el espesor medido no es el declarado y la pieza deja de ser convexa. Definida como intersección de planos (exterior, interior, suelo, techo y los planos de las piezas vecinas), la convexidad y la planitud salen por definición, y dos piezas contiguas comparten cara exacta porque el límite de una es el plano de la otra.
 
-[S] Las piezas no convexas que quedan están en la lista de §10.
+Hoy validate_glb.py no encuentra ninguna pieza no convexa. Quedan tres con una cara ligeramente alabeada, ARM_Upper_Back_Plate (5,59 mm) y ARM_Lower_Side_L_Plate y _R_Plate (1,10 mm), convexas salvo ese pliegue, que solo afecta a los rayos que pasan por ese borde (§9).
 
 ### 3.2 Agrupación por contacto
 
@@ -268,7 +268,7 @@ El proyectil se queda clavado, no desaparece. Entra en la capa la profundidad qu
 
 La energía residual se calcula en §3.4.2, a partir de la cadena de capacidad. Lo que vive aquí es la masa del tapón, que §3.6 necesita para repartirla.
 
-[S] Límite balístico de la capa derivado de la tabla (tipo De Marre, exponente ≈0,7, verificar), y velocidad residual por Recht-Ipson con p = 2:
+Límite balístico de la capa derivado de la tabla (De Marre, con el exponente verificado en §2.2.1), y velocidad residual por Recht-Ipson con p = 2 ([S], §10):
 
 v_residual² = a · (v_impacto² − v_límite²)      con a = m_p / (m_p + m_tapón)
 
@@ -308,7 +308,18 @@ Lo que da con los espesores del Pz IV H para el PzGr. 39 (75 mm, 6,8 kg) sobre R
 
 Con el PzGr. 40 va de 0,115 a 0,343 en el mismo rango, que es lo esperable, un núcleo ligero arrastra un tapón comparable a su propia masa. Ese 9-34 % cae dentro del rango que cita la literatura de behind-armour debris, así que el anclaje no es solo interno al modelo.
 
-Los fragmentos son el astillado de la placa más los trozos que pierde el proyectil. Se generan N rayos dentro de un cono alrededor de la dirección de salida, repartiéndose E_astillado. Sin implementar, ver §10.
+Fragmentos, versión provisional (04/11). Solo el astillado de la placa: el proyectil no se rompe (§9), así que los fragmentos son el tapón partido en trozos.
+
+* N = m_tapón / masa_fragmento, redondeado, con masa_fragmento = 5 g [S]. Todos de la misma masa, m_tapón / N; todavía sin distribución de Mott.
+* Salen del punto de salida de la capa a la misma velocidad que el núcleo, como dice §3.5, así que se reparten E_astillado a partes iguales: E_fragmento = E_astillado / N. La suma es exacta y el presupuesto de §1 sigue cerrado.
+* Dirección al azar, uniforme en ángulo sólido, dentro de un cono de semiángulo 30° [S] alrededor de la dirección del núcleo, con la semilla del disparo (§1).
+* Cada fragmento es un rayo con la ley de pérdida por recorrido de §3.7 y el diámetro de una esfera de acero de su masa, d = (6m / (π·ρ))^(1/3), 10,7 mm para 5 g. Se da por detenido cuando le quedaría menos de 1 J [S], que no supera ningún umbral ni deposita nada apreciable.
+* Daña con las mismas reglas que el núcleo (§3.7.1). Como núcleo y fragmentos pueden tocar el mismo módulo, la salud se aplica al final, ordenando todos los eventos por tiempo.
+* Un fragmento no genera fragmentos al atravesar una placa, no rebota y no se rompe.
+
+Lo que da en el disparo de referencia, PzGr. 39 a 100 m contra el frontal: 562 fragmentos de 5 g y 455 J del frontal, 69 del mamparo y 141 de la placa trasera. Con ellos quedan fuera cuatro de los cinco tripulantes y 18 cartuchos, frente a dos tripulantes y cuatro cartuchos con el núcleo solo. El resultado depende mucho de la masa del fragmento y del cono (§6): con menos fragmentos y más grandes, el daño se concentra en menos objetos.
+
+Rendimiento: un rayo por fragmento, unos 5 ms por rayo en Python y unos 4 s por disparo. Un barrido masivo necesitaría rayos representativos con peso.
 
 ### 3.7 Pérdida de energía y daño
 
@@ -330,9 +341,9 @@ El núcleo no se detiene por energía agotada, sino porque el camino equivalente
 Los fragmentos no tienen capacidad, así que conservan la ley por recorrido:
 
 E -= camino × resistance_material × σ_fragmento × (π/4)·d²  <br>
-si E <= 0: se detiene dentro del objeto
+si E < energia_minima_fragmento_J (1 J): se detiene dentro del objeto
 
-con camino en metros, d el diámetro del fragmento en metros y σ_fragmento una resistencia dinámica en Pa. [A] Está sin fijar (§6), una esquirla no figura en ninguna tabla de penetración así que no se puede derivar como se derivó σ_RHA, y hay que declararla o anclarla de otro modo.
+con camino en metros, d el diámetro del fragmento en metros y σ_fragmento una resistencia dinámica en Pa. [S] Fijada provisionalmente en 3,10 GPa, el σ_RHA del PzGr. 39, en parametros.csv. Una esquirla no figura en ninguna tabla de penetración, así que no se puede derivar como σ_RHA; el valor es una aproximación declarada y va al análisis de sensibilidad (§6).
 
 De dónde salía σ_RHA, que el núcleo ya no usa pero sigue siendo el único anclaje disponible. En el límite balístico el proyectil deposita toda su energía en el espesor que justo perfora:
 
@@ -387,7 +398,7 @@ La oruga es un módulo porque su avería inmoviliza el vehículo, y por eso no e
 
 [S] Health de la cinta = 5 kJ, orden de magnitud propio y sin fuente: cizalla doble de un pasador de Ø25 mm (≈ 400 MPa × 2 × 4,9·10⁻⁴ m² ≈ 400 kN sobre ≈ 8 mm de recorrido ≈ 3 kJ). Cualquier AP que la cruce lo supera con holgura, el astillado que llega con cientos de julios no.
 
-[S] La rueda motriz también es Track, con Health = 20 kJ: sin la motriz la oruga no recibe potencia, así que su avería inmoviliza igual que cortar la cinta. Cuatro veces el de la cinta por ser una pieza maciza y no un eslabón con pasador, sin fuente. Cada objeto Track conserva su propio umbral, así que mezclar valores dentro del tipo no plantea ningún problema. La tensora es Track por el mismo argumento, sin ella la cinta pierde tensión y se sale. Las ruedas de rodadura, en cambio, son placas y no módulos: perder una no inmoviliza el vehículo.
+[S] La rueda motriz también es Track, con Health = 20 kJ: sin la motriz la oruga no recibe potencia, así que su avería inmoviliza igual que cortar la cinta. Cuatro veces el de la cinta por ser una pieza maciza y no un eslabón con pasador, sin fuente. Cada objeto Track conserva su propio umbral, así que mezclar valores dentro del tipo no plantea ningún problema. La tensora es Track por el mismo argumento, con Health = 16 kJ y sin fuente: sin ella la cinta pierde tensión y se sale. Las ruedas de rodadura, en cambio, son placas y no módulos: perder una no inmoviliza el vehículo.
 
 Órdenes de magnitud que produce el modelo, útiles para fijar los valores:
 
@@ -407,9 +418,9 @@ La oruga es un módulo porque su avería inmoviliza el vehículo, y por eso no e
 | Transmission | ~150 kJ | Menor que el motor, un impacto de lleno la inutiliza |
 | Engine | ~300 kJ | Un núcleo que llega con esa energía se detiene dentro del motor y la deposita entera |
 | Gun tubo | ~40 kJ | Acero macizo de pared gruesa, y sale por delante del mantelete. El más robusto de los dos |
-| Gun recámara | ~15 kJ | Mecanismo de precisión, se agarrota mucho antes de destruirse. Los dos valores son parámetros libres (§6) sin fuente; lo razonado es el orden, tubo por encima de recámara |
-| Ammo | — | No aplica, es un umbral de detonación y no una reserva |
-| Fuel | — | No aplica, umbral de ignición. El incendio no es destrucción instantánea (§7) |
+| Gun recámara | ~25 kJ | Mecanismo de precisión, se agarrota mucho antes de destruirse. Los dos valores son parámetros libres (§6) sin fuente; lo razonado es el orden, tubo por encima de recámara |
+| Ammo | 150 J por cartucho | Umbral de detonación, no reserva. Sin fuente |
+| Fuel | 5000 J | Umbral de ignición, no reserva. Sin fuente. El incendio no es destrucción instantánea (§7) |
 
 Los dos valores acumulativos se fijaron con la ley lineal de σ_RHA, que ya no se usa, así que hay que recalibrarlos (§10).
 
@@ -482,14 +493,15 @@ La carga hueca cambia la moneda del cálculo.
 
 Es la parte más difícil de defender, porque no hay datos para calibrarla: las tablas solo cubren la perforación, no los efectos tras el blindaje. Cada parámetro es un número que hay que justificar o declarar como supuesto.
 
-Los que dependen del proyectil van en data/fragmentation.csv, una fila por tipo, y los que no en data/parametros.csv como pares clave-valor. Nunca escondidos en el código (§1). Los Health de los módulos salen del modelo glb.
+Los que no dependen del proyectil van en data/parametros.csv como pares clave-valor. Los que dependen de él irán en data/fragmentation.csv, una fila por tipo, cuando haga falta distinguirlos; hoy los de fragmentos son únicos y están en parametros.csv. Nunca escondidos en el código (§1). Los Health de los módulos salen del modelo glb.
 
 | Parámetro | Depende de | Qué controla |
 |---|---|---|
-| n_fragments | tipo, espesor/calibre, energía residual | cuántos rayos se lanzan |
-| cone_half_angle | tipo | cuánto se abre la metralla |
+| masa_fragmento_g | — | masa de cada fragmento; fija cuántos salen, N = m_tapón / masa. [S] 5 g provisional (§3.6) |
+| cono_fragmentos_deg | tipo | cuánto se abre la metralla. [S] 30° provisional, el mismo para todos los tipos |
 | ricochet_angle | tipo, calibre/espesor | umbral de rebote |
-| sigma_fragmento | — | pérdida de energía por recorrido, solo de los fragmentos (§3.7). [A] Sin fijar, 3,10 GPa si se adopta el valor del núcleo como aproximación declarada |
+| sigma_fragmento_GPa | — | pérdida de energía por recorrido, solo de los fragmentos (§3.7). [S] 3,10 GPa, el valor del núcleo como aproximación declarada |
+| energia_minima_fragmento_J | — | por debajo, el fragmento se da por detenido (§3.6). [S] 1 J |
 | umbral_crew_torso | — | energía de entrada que incapacita (§3.7.2). Sin validar, y el que más probabilidades tiene de cambiar |
 | umbral_crew_piernas | — | múltiplo del umbral del torso (§3.7.1) |
 | fuze_arm_threshold | solo APHE | espesor mínimo para armar |
@@ -497,7 +509,7 @@ Los que dependen del proyectil van en data/fragmentation.csv, una fila por tipo,
 
 Esta tabla es la sección de limitaciones de la memoria, cuantos menos parámetros más defendible el modelo.
 
-n_fragments no es del todo libre aunque siga en la tabla: con m_tapón conocido y una distribución de tamaños de Mott, la que ya se usa para la carcasa del HE en §4, el número sale de m_tapón / masa_media_fragmento.
+El número de fragmentos no es libre: sale de m_tapón / masa_fragmento. Lo libre es la masa, y con una distribución de tamaños de Mott, la que ya se usa para la carcasa del HE en §4, pasaría a ser la masa media.
 
 Dos parámetros que estuvieron en esta tabla y ya no hacen falta, porque conviene saber por qué no están. Un coeficiente de absorción por recorrido para el núcleo: la pérdida es ahora la caída de la cadena de capacidad (§3.4.2), así que no hay nada que calibrar. Y una fracción de astillado por proyectil: la fija la a de Recht-Ipson y la masa del tapón, que es geometría (§3.5 y §3.6), y además no podía funcionar porque un fichero por proyectil no sabe en qué material está pegando.
 
@@ -530,6 +542,7 @@ Estado final del vehículo. Por ahora solo se muestra el daño acumulado por mó
 | health_in_J, health_out_J | vida del módulo antes y después. Solo en module_hit |
 | out_of_service | [A] bool, solo en module_hit y detonation. En los tipos de umbral health_out_J no cambia, así que esto es lo único que dice el estado |
 | plug_mass_kg, spall_energy_J, shear_energy_J | [A] solo en perforation: masa del tapón (§3.5), energía que se lleva (alimentará los fragmentos de §3.6) y energía de cizalla. Con energy_out_J cierran el presupuesto de §1 |
+| n_fragments, fragment_mass_kg, fragment_diameter_mm | solo en fragment_spawn: cuántos fragmentos salen, de qué masa y de qué diámetro (§3.6). Cada fragmento es un rayo con su propio ray_id y con parent_id el rayo que perforó la capa |
 
 El recorrido es un árbol, no una lista. En cada fragment_spawn nacen N rayos y el núcleo continúa, así que sin ray_id y parent_id el render no sabe qué segmento une con cuál.
 
@@ -541,13 +554,13 @@ Instantes derivados del camino, t += camino / v_media_del_tramo, con las velocid
 
 ### 7.2 Reproducción
 
-Tiempo no uniforme, en tres fases. El evento dentro del vehículo dura unos 7,5 ms y la perforación de la placa frontal 120 µs, el 1,6 % del total. Un frame a 60 fps son 16,7 ms, así que el disparo entero ocurre dentro de medio frame. Con una escala única, o la perforación es invisible o el interior es interminable:
+Tiempo no uniforme, en tres fases. En el disparo de referencia (PzGr. 39 a 100 m contra el frontal, disparo.py sin argumentos) el núcleo tarda 13,0 ms desde el primer contacto hasta salir por la placa trasera, y perforar el frontal le lleva 139 µs, el 1,1 % del total. Un frame a 60 fps son 16,7 ms, así que el disparo entero ocurre dentro de un solo frame. Con una escala única, o la perforación es invisible o el interior es interminable:
 
 | Fase | Duración real | En pantalla | Factor |
 |---|---|---|---|
 | Aproximación (últimos ~5 m) | 6,7 ms | 1,5 s | ×225 |
-| Perforación de la capa | 120 µs | 1,5 s | ×12 500 |
-| Interior y fragmentos | 5 ms | 2 s | ×400 |
+| Perforación de la capa | 139 µs | 1,5 s | ×10 800 |
+| Interior y fragmentos | 13 ms | 2 s | ×150 |
 
 La aproximación arranca a unos metros del vehículo, no a la distancia de disparo: a 1000 m, mostrar el vuelo a escala es un minuto de cielo vacío. El vuelo libre no tiene física en el modelo, porque la penetración sale de la tabla indexada por distancia (§2.2), así que es decorado y puede ir a la escala que convenga.
 
@@ -567,7 +580,9 @@ El color del daño sale de Health, pero no todos los módulos llevan degradado, 
 
 La razón es del modelo, no del render. En esos cuatro tipos el Health es un umbral y no una reserva (§3.7.1), así que no existe nada entre el 100 % y el 0 %. Un degradado ahí mentiría, porque daría a entender que un tripulante está medio incapacitado cuando el modelo solo conoce dos estados. Gris claro y no blanco puro, que se lava contra el blindaje translúcido.
 
-Cuatro mallas de proyectil, por revolución de un perfil: PzGr. 39, PzGr. 40 completo, el núcleo desnudo del PzGr. 40 y el Gr. 38 Hl/C. En el perforation de la primera capa el render cambia la malla del APCR por la del núcleo, porque el penetrador es el núcleo de tungsteno y no el casquillo (§3.5); mostrar los 75 mm enteros cruzando el interior contradiría la propia física del modelo. Son objetos puramente visuales, sin Thickness_mm, sin Module_Type y sin material de §2.3, y van en ficheros aparte (models/PzGr_39.glb y compañía), no dentro del vehículo.
+Tres mallas de proyectil, por revolución de un perfil: PzGr. 39, PzGr. 40 y Gr. 38 Hl/C. En los APCR el núcleo se desengancha en la primera perforación: con el evento perforation de la primera capa la malla del PzGr. 40 desaparece y el núcleo sigue como su rayo (parent_id null, §7.1), sin malla propia, que no se modela por simplificación. Es lo que calcula el modelo, porque el penetrador es el núcleo de tungsteno y no el cuerpo (penetrating_mass_kg, §2.1); mostrar los 75 mm enteros cruzando el interior contradiría esa física. Licencia visual declarada: el cálculo usa el núcleo desde el primer contacto, y el render mantiene la malla completa mientras perfora la primera capa. Si el APCR no perfora la primera capa, la malla completa se queda clavada (evento stopped). Son objetos puramente visuales, sin Thickness_mm, sin Module_Type y sin material de §2.3, y van en ficheros aparte, uno por malla, no dentro del vehículo. El nombre del fichero es el shell_id de shells.csv más .glb, para que el motor cargue la malla a partir del identificador del proyectil sin tabla de equivalencias: models/PzGr39_75_L48.glb, models/PzGr40_75_L48.glb y models/Gr38HlC_75_L48.glb.
+
+Convenio de ejes de esas mallas: la punta del proyectil está en el origen (0, 0, 0) y el cuerpo se extiende hacia -Y, de modo que el eje de revolución es el eje Y y la malla queda centrada en X y Z. Así el motor coloca la malla directamente en el pos de un evento de §7.1, que es el punto de intersección del rayo con la superficie, y la punta cae sobre el impacto sin ningún desfase que compensar. Unidades en metros, las mismas del vehículo.
 
 ## 8. Validación
 
@@ -604,9 +619,9 @@ El resultado de §2.2.1 sobre el exponente de De Marre sí es validación real, 
 * Sin deformación real del blindaje ni del proyectil, solo una marca del agujero.
 * No se modela la rotura del proyectil. Cuando la capacidad residual no alcanza para la capa siguiente, el núcleo se detiene y se queda clavado (§3.4.2) en vez de fragmentarse. Un núcleo que llega al límite suele romperse de verdad, y eso generaría fragmentos que aquí no existen. La decisión favorece lo conservador, menos daño del real y no más.
 * Las caras de canto dan un ángulo y un espesor no representativos. Un rayo que entra por el borde de una chapa horizontal de 8 mm puede recorrer 245 mm por dentro de ella. Hay que tratar aparte las caras cuya normal es casi perpendicular a la normal exterior de su placa.
-* La suposición de convexidad (§3.1).
+* La suposición de convexidad (§3.1), que incumplen en un borde las tres caras alabeadas de esa sección.
 * [S] La cadena de capacidad usa a = 1 (§3.4.2), así que la velocidad residual que se deduce de ella no lleva el factor √a que sí lleva la fórmula de §3.5. La alternativa, meter a dentro de la cadena, apartaría la predicción de perforación de las tablas, que son el único anclaje del modelo.
-* [A] La ley de pérdida de los fragmentos sigue con un coeficiente libre, sigma_fragmento (§3.7, §6). El núcleo se libró de él al derivar la energía de la capacidad, pero una esquirla no figura en ninguna tabla de penetración, así que para ella no hay anclaje equivalente.
+* [S] La ley de pérdida de los fragmentos usa sigma_fragmento = 3,10 GPa, tomado del núcleo (§3.7, §6). El núcleo se libró de ese coeficiente al derivar la energía de la capacidad, pero una esquirla no figura en ninguna tabla de penetración, así que para ella no hay anclaje equivalente.
 * Los torsos y las piernas del artillero y del cargador se solapan (40,0 y 8,8 mm) y se dejan así para no rehacer la malla de los tripulantes. No afecta al resultado porque §3.7.3 agrega con OR dentro de cada tripulante. Sí afectaría un solape entre objetos de módulos distintos, porque ahí el camino se contaría dos veces.
 * Las ruedas del tren de rodaje se quedan como prismas macizos, motriz, tensora y rodadura. Vaciarlas sería mucho modelado para un detalle que no cambia el daño, que lo decide el tipo de módulo y no la forma. Pero entonces el material no puede ser Steel: un disparo lateral cruza una rueda a lo ancho, 150 mm en las de rodadura y 250 mm en la motriz, que con 0,6 serían 90 y 150 mm de RHA equivalente sumados al flanco, contra los 30 mm del costado del casco. Una rueda real son dos chapas estampadas con aire en medio, y el acero que cruza de verdad un disparo lateral son unos 20 mm. De ahí el material Wheel, igual que Track vale 0,7 para una cinta que en realidad son eslabones con huecos: la simplificación está en la geometría y la corrección va en el material. Su resistance está a 0,40 de forma orientativa y el orden sigue invertido, pendiente de fijar (§2.3, §10).
 * La cinta de la oruga es una plancha continua de 20 mm, y la real son eslabones con huecos. Lo compensa en parte la resistance de 0,7 de Track, que es un promedio y no una geometría.
@@ -616,7 +631,7 @@ El resultado de §2.2.1 sobre el exponente de De Marre sí es validación real, 
 * El criterio de incapacitación de la tripulación es una convención sin validar (§3.7.2). La fuente que documenta su origen recomienda explícitamente no usar umbrales de energía para esto. Se usa por falta de alternativa dentro del alcance, no por estar respaldado.
 * La velocidad del Gr. 38 Hl/C está puesta como constante y no lo es (§2.2.1). Irrelevante para su penetración, que no depende de la velocidad.
 * La validación contra tablas es circular mientras no haya datos independientes (§8).
-* Rebote (§3.3) y fragmentos (§3.6) no están implementados, así que el único daño que calcula el núcleo hoy es el del propio proyectil.
+* El rebote (§3.3) no está implementado. Los fragmentos (§3.6) son provisionales: solo los del tapón, todos de la misma masa, sin fragmentos secundarios ni rotura del proyectil, y con la masa, el cono y σ_fragmento supuestos.
 
 ## 10. Pendientes
 
@@ -625,7 +640,7 @@ Datos
 * [ ] Fijar el resistance de Wheel. Está a 0,40 de forma orientativa y deja el flanco por encima del frontal, y su spall de 0,13 sale de otro supuesto, 20 mm de acero real. Las dos columnas tienen que salir del mismo número de milímetros (§2.3).
 * [ ] Resolver la contradicción del fuze_delay_ms del PzGr. 39. shells.csv dice 3 ms y este documento dice que la Bd.Z. 5103 no lleva retardo de diseño. O el 3 tiene fuente y se corrige el documento, o sobra el 3. Gobierna el punto de detonación de §4, así que decide si el APHE revienta en el compartimento o fuera. El renombrado a APCBC-HE lo hace más urgente, porque el tipo ahora afirma que lleva explosivo.
 * [ ] Fuente para los 28 mm del núcleo del PzGr. 40, hoy derivados de la masa y de un L/d supuesto (§2.1). El contraste de σ_RHA de §3.7 depende de ese número.
-* [ ] Dar claves a data/sources.md y rellenar source_id en las tres tablas. Hoy es una lista plana de URL, así que ninguna cifra es trazable a su fuente.
+* [ ] Dar claves a data/sources.md y rellenar source_id en las tres tablas. Hoy es una lista plana de URL, así que ninguna cifra es trazable a su fuente. De paso, la columna source de data/parametros.csv usa la marca [D], que este documento ya no define.
 * [ ] Columna de 60° para los dos proyectiles cinéticos. Vendrá de ensayos aliados, que son además los datos independientes que pide §8.
 * [ ] Velocidad real del Gr. 38 Hl/C. Mientras tanto está a 450 m/s constante en velocity.csv, declarado en §9.
 * [ ] Validar el 9-34 % de §3.6 contra una medida publicada. El caso más parecido es Experimental and analytical study of behind armor debris after perforation of a steel plate by an AP projectile (FME Transactions, Belgrado), pendiente de conseguir el texto.
@@ -633,29 +648,26 @@ Datos
 
 Modelo y código
 
-* [ ] Crear data/fragmentation.csv e implementar los fragmentos de §3.6 y el rebote de §3.3.
-* [ ] Fijar sigma_fragmento (§3.7, §6), el único coeficiente de pérdida que queda.
+* [ ] Implementar el rebote de §3.3.
+* [ ] Dar fuente a la masa de fragmento (5 g) y al cono (30°) de §3.6 con datos de behind-armour debris, y pasar a una distribución de tamaños de Mott.
+* [ ] Dar fuente a sigma_fragmento (§3.7, §6), hoy 3,10 GPa provisional.
 * [ ] Recalibrar el Health de Engine y Transmission (§3.7.1). Los 300 y 150 kJ se fijaron con la ley lineal de σ_RHA, que ya no se usa.
 * [ ] Capa compuesta con placas de orientación distinta. §3.2 suma los caminos, pero la tabla de §3.4 se consulta con un ángulo y disparo.py usa el de la primera placa. Caso real, ARM_Front_Track_Addon_Upper a 70° delante de ARM_Middle_Front_Plate.
 * [ ] Decidir cuál de los dos eventos lleva la energía cuando un módulo detiene al proyectil, module_hit o stopped (§7.1).
 * [ ] Aprobar los cuatro campos nuevos del esquema de §7.1: out_of_service, plug_mass_kg, spall_energy_J, shear_energy_J.
-* [ ] ballistic_data.spall_fraction() llama path_eq_mm a su tercer parámetro, pero §3.5 pide el camino geométrico, que es lo que le pasa disparo.py. Renombrar el parámetro.
-* [ ] tools/spall.py y ballistic_data.spall_fraction() implementan la misma fórmula de §3.5 en dos sitios. Borrar el primero, que era un borrador. Contradice el principio de §1.
-* [ ] Reglas de fuera de combate (§7), incluida la agregación de §3.7.3, que tampoco está en el código.
+* [ ] Reglas de fuera de combate (§7). La agregación de §3.7.3 ya está en el código (estado_final de disparo.py); faltan las reglas que deciden con ella si el vehículo queda fuera de combate.
 * [ ] Regla de detonación de APHE fuera del vehículo (§4).
 * [ ] Datos de penetración independientes para romper la circularidad de §8.
 
 Modelo 3D
 
-* [ ] Resolver las ocho piezas no convexas (§3.1): ARM_Addon_L y _R, ARM_Front_Top_Plate, ARM_Lower_Side_L_Plate y _R_Plate, ARM_Upper_Back_Plate, MOD_Barrel y MOD_Engine.
-* [ ] Vaciar las ruedas del tren de rodaje o darles material propio (§9), y modelar los rodillos de retorno y la suspensión.
+* [ ] Modelar los rodillos de retorno y la suspensión. Las ruedas ya tienen material propio, Wheel (§9); lo que falta es fijar su resistance (ver Datos).
 * [ ] Separar el Health de piernas y torso en el glb, o quitar ese argumento de §3.7.1.
-* [ ] Aplicar la escala del mantelete en Blender: la geometría da 47,01 y 46,01 mm contra los 50 declarados.
-* [ ] Dar fuente a los Health de Track, 5 kJ la cinta y 20 kJ la motriz (§3.7.1).
-* [ ] Perfiles y cotas reales de los cuatro proyectiles para modelar las mallas de §7.2: longitud, calibre, radio de ojiva y dimensiones del núcleo del PzGr. 40. Es investigación de datos, no modelado.
-* [ ] Comprobar que validate_glb.py ignora los objetos puramente visuales de §7.2, que no llevan Thickness_mm ni Module_Type, o darles un prefijo VIS_ que el validador salte.
+* [ ] Dar fuente a los umbrales de Track (5 kJ la cinta, 20 kJ la motriz y 16 kJ la tensora), Ammo (150 J) y Fuel (5000 J) (§3.7.1).
+* [ ] Cotas reales para las mallas de §7.2. Resueltas las del PzGr. 39 y el PzGr. 40 con los dibujos 13 C 1235 y 13 C 1236 (§2.1). Falta un dibujo acotado del Gr. 38 Hl/C: la malla actual sale de una figura comparativa sin cotas, escalada suponiendo que el ancho máximo es el calibre, así que su longitud de 343 mm es [S]. El núcleo del PzGr. 40 no tiene malla (§7.2), pero sus cotas en 13 C 1236, que lo dibuja en corte, siguen sirviendo para dar fuente a los 28 mm de §2.1.
 
 Alcance
 
 * [ ] Consultar con el tutor el criterio de incapacitación (§3.7.2), planteado como cuestión de alcance.
-* [ ] [A] Decidir si el T-44 entra como segundo vehículo, y si entra, si es sólo blanco (no requiere ni un dato nuevo de munición) o también tirador (duplica la tabla de proyectiles con el ZiS-S-53 de 85 mm). Casco sencillo y muy inclinado, torreta fundida redondeada: ejercita justo la parte del modelo que justifica medir la geometría, y por eso vale más como demostración que un segundo vehículo de planchas planas.
+* [ ] [A] Segundo vehículo, opcional: la solicitud exige un mínimo de uno y el Pz IV lo cubre. Candidato, el T-44: casco sencillo y muy inclinado y torreta fundida redondeada, que ejercita justo la parte del modelo que justifica medir la geometría, y por eso vale más como demostración que un segundo vehículo de planchas planas. Va después de fragmentos, rebote, APHE y HEAT. Antes de modelarlo entero, dos comprobaciones: que existan planos acotados (si no, el T-34-85, mejor documentado) y un prototipo de la torreta facetada que pase validate_glb.py.
+* [ ] [A] Ampliar los cañones del selector. El vehículo que dispara no se dibuja, solo se eligen cañón y proyectil, así que añadir el ZiS-S-53 de 85 mm es independiente del segundo vehículo: duplica la tabla de proyectiles con sus datos de penetración y velocidad.

@@ -2,3 +2,7 @@ key,value,unit,source
 n_de_marre,"1,428",,"§2.2.1 [D]: media medida de P ~ v^n cruzando velocity.csv con penetration.csv"
 contact_gap_mm,"1,0",mm,"§3.2 [S]: hueco perpendicular por debajo del cual dos objetos forman una sola capa"
 rho_acero,7850,kg/m3,"§3.5 [D]: densidad del acero, para la masa del tapon"
+masa_fragmento_g,5,g,"§3.6 [S]: masa de cada fragmento del tapon, provisional (04/11)"
+cono_fragmentos_deg,30,deg,"§3.6 [S]: semiangulo del cono de fragmentos, provisional (04/11)"
+sigma_fragmento_GPa,"3,10",GPa,"§3.7 [S]: el sigma_RHA del PzGr. 39 como aproximacion, provisional (04/11)"
+energia_minima_fragmento_J,1,J,"§3.6 [S]: por debajo el fragmento se da por detenido; no supera ningun umbral ni deposita nada apreciable (04/11)"
