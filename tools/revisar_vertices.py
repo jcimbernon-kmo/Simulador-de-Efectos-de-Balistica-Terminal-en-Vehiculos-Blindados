@@ -34,9 +34,6 @@ modelo son el agujero de malla y la cara alabeada:
   - Cara alabeada: cuatro vertices que no son coplanares se trianguladan de
     dos maneras distintas segun el exportador, asi que el camino medido
     depende de quien lea el archivo.
-
-Pestana Scripting -> New -> pegar -> Run. Mira la consola del sistema
-(Window -> Toggle System Console) si la salida es larga.
 """
 import bmesh
 import bpy
