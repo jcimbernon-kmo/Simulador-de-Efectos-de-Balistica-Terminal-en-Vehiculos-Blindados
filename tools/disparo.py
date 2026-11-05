@@ -1,29 +1,13 @@
-"""Un disparo de extremo a extremo, sin motor ni graficos.
+#Simulacion de disparo mediante rayos, se usa el .glb, con tramos, capas por contacto, perforacion por capacidad, energia residual, perdida de energia y daño a modulos, fragmentos del tapon, y estado final.
+#Lo vuelca en una linea temporal en JSON
 
-Lanza un rayo contra el .glb y aplica el modelo de docs/modelo_balistico.md:
-tramos (§3.1), capas por contacto (§3.2), perforacion por capacidad (§3.4),
-energia residual de Recht-Ipson (§3.5), perdida de energia y dano a modulos
-(§3.7), fragmentos del tapon (§3.6) y estado final (§3.7.3). Devuelve la
-linea temporal de §7.1 en JSON.
+#Falta rebote, explosivos y tipo HEAT
 
-TODAVIA NO: rebote (§3.3), explosivo (§4) ni HEAT (§5). Los fragmentos son una
-version provisional: solo los del tapon, todos de la misma masa.
-Solo biblioteca estandar.
-
-UNA SOLA CUENTA DE ESTADO (decidido el 29/10/2026, §3.4.2). El estado es la
-energia, y la capacidad se deduce de ella: con P proporcional a v^n,
-P = P0 * (E/E0)^(n/2). La version anterior llevaba dos cuentas en paralelo -la
-cadena en capacidad de §3.4.1 y una perdida propia con sigma_RHA en §3.7- y se
-contradecian: el nucleo se quedaba sin energia y seguia perforando con 56 mm de
-capacidad. Queda documentado en §3.4.2 y en estado.md.
-
-Consecuencia: sigma_RHA ya no interviene en el nucleo. Los fragmentos, que no
-tienen capacidad, usan sigma_fragmento de parametros.csv (§3.7, provisional).
-
-Uso:  python tools/disparo.py                      disparo de prueba, resumen
-      python tools/disparo.py --shell PzGr40_75_L48 --distance 500 --origin 0.3 -2 1.1
-      python tools/disparo.py --out disparo.json   ademas guarda la linea temporal
-      python tools/disparo.py --selftest
+"""
+python tools/disparo.py disparo de prueba, resumen
+python tools/disparo.py --shell PzGr40_75_L48 --distance 500 --origin 0.3 -2 1.1
+python tools/disparo.py --out disparo.json   ademas guarda la linea temporal
+python tools/disparo.py --selftest
 """
 import argparse
 import csv
@@ -37,18 +21,16 @@ import ballistic_data as B
 import validate_glb as V
 
 # §3.7.1: que significa Health segun el tipo de modulo.
-ACUMULATIVO = ('Engine', 'Transmission', 'Gun')   # reserva en julios, se decrementa
-UMBRAL = ('Crew', 'Track', 'Ammo', 'Fuel')         # umbral de energia de entrada, no se toca
+ACUMULATIVO = ('Engine', 'Transmission', 'Gun')   #En Julios
+UMBRAL = ('Crew', 'Track', 'Ammo', 'Fuel')
 CINETICOS = ('AP', 'APCBC', 'APCBC-HE', 'APCR')
 
-# Disparo de prueba: casco frontal derecho, a 100 m.
+#Disparo a casco frontal derecho, 100m
 SHELL, DISTANCIA = 'PzGr39_75_L48', 100.0
 ORIGEN, DIRECCION = (0.50, -2.00, 1.30), (0.0, 1.0, 0.0)
 
-
-# --- datos ------------------------------------------------------------------
+#Cargar datos
 def cargar_parametros(folder):
-    """data/parametros.csv. Sin valores por defecto: si falta una clave, error."""
     path = os.path.join(folder, 'parametros.csv')
     if not os.path.exists(path):
         raise FileNotFoundError(f"falta {path} (n_de_marre, contact_gap_mm, rho_acero)")
@@ -59,35 +41,25 @@ def cargar_parametros(folder):
             raise ValueError(f"{path}: falta la clave '{k}'")
     return par
 
-
 def sigma_rha(bd, pid, area_m2):
-    """Resistencia dinamica del RHA derivada de la tabla del propio proyectil:
-    E_impacto / (espesor perforado a 100 m y 0 grados x area).
-
-    YA NO LA USA EL NUCLEO (§3.4.2, 29/10/2026). Se conserva porque es el anclaje
-    del valor provisional de `sigma_fragmento` (§6), y porque el contraste entre
-    los dos proyectiles -3,10 GPa el PzGr. 39 y 3,21 GPa el PzGr. 40, dentro de un
-    3,5 % sin haber ajustado nada- es un argumento para la memoria.
-    """
+    #E_impacto / (espesor perforado a 100 m y 0 grados x area)
     e100, _ = bd.impact_energy(pid, 100.0)
     t100, _ = bd.nominal(pid, 100.0, 0.0)
     if e100 is None or t100 is None:
-        raise ValueError(f"{pid}: sin velocidad o sin penetracion a 100 m y 0 grados")
+        raise ValueError(f"{pid} sin penetracion")
     return e100 / (t100 / 1000.0 * area_m2)
-
 
 def cadena(cap_mm, t_mm, q):
     """§3.4.1: capacidad que queda tras una capa de t_mm de RHA equivalente."""
     return max(cap_mm ** q - t_mm ** q, 0.0) ** (1.0 / q)
 
 
-# --- geometria --------------------------------------------------------------
+#Geometria
 def _normal(tri, d, contra_el_rayo):
     n = V.norm(V.cross(V.sub(tri[1], tri[0]), V.sub(tri[2], tri[0])))
     if (V.dot(n, d) > 0) == contra_el_rayo:
         n = (-n[0], -n[1], -n[2])
     return n
-
 
 def trazar(objs, o, d):
     """§3.1: tramos que cruza el rayo, ordenados por entrada. Entrada = primera
@@ -103,7 +75,7 @@ def trazar(objs, o, d):
             continue
         hits.sort(key=lambda h: h[0])
         (t_in, tri_in), (t_out, tri_out) = hits[0], hits[-1]
-        if t_out - t_in < 1e-7:             # roza un borde
+        if t_out - t_in < 1e-7:
             continue
         n_in = _normal(tri_in, d, True)
         out.append({'name': name, 'props': props, 't_in': t_in, 't_out': t_out,
@@ -113,9 +85,7 @@ def trazar(objs, o, d):
     out.sort(key=lambda tr: (tr['t_in'], tr['t_out']))
     return out
 
-
 def agrupar(tramos, d, contacto_m):
-    """§3.2: tramos consecutivos con hueco PERPENDICULAR < contacto forman una capa."""
     capas, actual, fin = [], [], 0.0
     for tr in tramos:
         if actual and (tr['t_in'] - fin) * abs(V.dot(tr['n_in'], d)) < contacto_m:
@@ -129,14 +99,12 @@ def agrupar(tramos, d, contacto_m):
         capas.append(actual)
     return capas
 
-
 def _punto(o, d, s):
     return tuple(o[i] + d[i] * s for i in range(3))
 
-
-# --- el disparo -------------------------------------------------------------
+#Disparo
 class Linea:
-    """Lista de eventos con reloj: t += camino / velocidad media (§7.1)."""
+    #Lista de eventos con reloj: t += camino / velocidad media
 
     def __init__(self, s0, v0, t0=0.0, ray_id=0, parent_id=None):
         self.ev, self.t, self.s, self.v = [], t0, s0, v0
@@ -156,7 +124,6 @@ class Linea:
         for k, v in campos.items():
             e[k] = round(v, 4) if isinstance(v, float) else v
         self.ev.append(e)
-
 
 def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
     d = V.norm(direccion)
@@ -183,7 +150,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
             raise ValueError(f"{tr['name']}: material sin resistance")
         return r
 
-    def eq_mm(tr):                                       # RHA equivalente del tramo
+    def eq_mm(tr): #RHA equivalente del tramo
         return tr['path'] * 1000.0 * res(tr)
 
     todos = trazar(objs, origen, d)
@@ -223,17 +190,15 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
         tipo = tr['props']['Module_Type']
         if deposita_todo:
             e_out = 0.0
-        else:                                           # misma ley que las placas, sin tapon
+        else:
             e_out = e_in * (cap_out / cap_in) ** q if cap_in > 0 else 0.0
         if e_out <= 0.0 and cap_out > 0.0 and not fantasma and not deposita_todo:
             # Con una sola cuenta esto no puede pasar: energia y capacidad estan
-            # ligadas por P = P0*(E/E0)^(n/2) y se agotan juntas. Se comprueba
-            # igual, porque es exactamente lo que fallaba antes del 29/10.
+            # ligadas por P = P0*(E/E0)^(n/2) y se agotan juntas.
             fantasma = True
             aviso.append(f"{tr['name']}: el nucleo se queda sin energia con {cap_out:.1f} mm "
                          f"de capacidad, lo que con una sola cuenta no deberia ocurrir")
-        # Health, health_in/out y out_of_service los pone aplicar_salud() al final,
-        # en orden de tiempo, porque nucleo y fragmentos pueden tocar el mismo modulo.
+        #Health, health_in/out y out_of_service los pone aplicar_salud() al final, en orden de tiempo, porque nucleo y fragmentos pueden tocar el mismo modulo.
         tipo_ev = 'detonation' if (tipo == 'Ammo' and e_in >= salud0[tr['name']]) else 'module_hit'
         lin.add(tipo_ev, tr, _punto(origen, d, tr['t_in']), tr['n_in'],
                 path_mm=(tr['path'] if prof_m is None else prof_m) * 1000.0,
@@ -243,12 +208,12 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
 
     for capa in capas:
         T = sum(eq_mm(tr) for tr in capa)
-        cap_in = P0 * (E / E0) ** (n / 2.0)       # §3.4.2: la capacidad sigue a la energia
+        cap_in = P0 * (E / E0) ** (n / 2.0)
         resumen_capas.append({'objects': [tr['name'] for tr in capa],
                               'path_mm': round(sum(tr['path'] for tr in capa) * 1000, 3),
                               'equivalent_mm': round(T, 3)})
 
-        def cap_tras(acum):                               # cadena parcial dentro de la capa
+        def cap_tras(acum):
             return cadena(cap_in, acum, q)
 
         lin.avanzar(capa[0]['t_in'], energia_a_v(E))
@@ -281,7 +246,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
                 break
             continue
 
-        i = 0                                             # la capa se perfora entera
+        i = 0 #La capa se perfora
         while i < len(capa):
             tr = capa[i]
             if 'Module_Type' in tr['props']:
@@ -291,7 +256,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
                 acum += e
                 i += 1
                 continue
-            paq = []                                      # §3.5 sobre placas contiguas
+            paq = [] #Sobre placas contiguas
             while i < len(capa) and 'Module_Type' not in capa[i]['props']:
                 paq.append(capa[i])
                 i += 1
@@ -302,7 +267,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
                     capacity_in_mm=cap_a, energy_in_J=E)
             v_i = energia_a_v(E)
             v_bl = v0 * (Tp / P0) ** (1.0 / n) if P0 > 0 else v_i
-            m_tap = 0.0                                   # §3.5: tapon con el diametro del penetrador
+            m_tap = 0.0 #Tapon con el diametro del penetrador.
             for t in paq:
                 sp = (bd.materials.get(t['props']['Armour_Material']) or {}).get('spall')
                 if sp is None:
@@ -318,14 +283,14 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
             e_nucleo, e_tapon = 0.5 * m * vr2, 0.5 * m_tap * vr2
             e_cizalla = E - e_nucleo - e_tapon
             ultima = paq[-1]
-            cap_b = P0 * (e_nucleo / E0) ** (n / 2.0)     # la capacidad sigue a la energia
+            cap_b = P0 * (e_nucleo / E0) ** (n / 2.0) #La capacidad sigue a la energia
             lin.avanzar(ultima['t_out'], math.sqrt(vr2))
             lin.add('perforation', ultima, _punto(origen, d, ultima['t_out']), ultima['n_out'],
                     path_mm=sum(t['path'] for t in paq) * 1000.0, angle_deg=paq[0]['angle'],
                     capacity_in_mm=cap_a, capacity_out_mm=cap_b,
                     energy_in_J=E, energy_out_J=e_nucleo,
                     plug_mass_kg=m_tap, spall_energy_J=e_tapon, shear_energy_J=e_cizalla)
-            if m_tap > 0.0 and e_tapon > 0.0:                    # §3.6: el tapon se rompe
+            if m_tap > 0.0 and e_tapon > 0.0: #El tapon se rompe
                 eventos_fragmentos.extend(fragmentos(
                     objs, bd, par, _punto(origen, d, ultima['t_out']), d, lin.t,
                     m_tap, e_tapon, ultima, semilla, ids))
@@ -394,8 +359,7 @@ def fragmentos(objs, bd, par, p0, d, t0, m_tap, e_tapon, placa, semilla, ids):
               fragment_mass_kg=m_f, fragment_diameter_mm=d_f * 1000.0,
               energy_in_J=e_tapon, energy_out_J=e_tapon)
     ev = spawn.ev
-    # ponytail: un rayo por fragmento, ~5 ms por rayo en Python (unos segundos por
-    # disparo). Si un barrido lo necesita: rayos representativos con peso.
+    #Un rayo por fragmento, unos 5 ms por rayo en Python Si un barrido lo necesita: rayos representativos con peso.
     for _ in range(n_frag):
         ids[0] += 1
         u = _cono(d, math.radians(par['cono_fragmentos_deg']), rng)
