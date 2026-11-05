@@ -1,29 +1,20 @@
-"""Carga las tablas de data/ (shells, penetration, velocity, materials) e
-interpola la penetracion y la velocidad. Solo datos: la fisica esta en disparo.py.
+#Carga las tablas de data/ (shells, penetration, velocity, materials) e interpola la penetracion y la velocidad. Solo datos: la fisica esta en disparo.py.
 
-Sin dependencias: solo la biblioteca estandar.
-Uso:  python ballistic_data.py data/           lista lo cargado
-      python ballistic_data.py --selftest
-"""
 import csv
 import math
 import os
 import sys
 
-NUMERICOS = ('caliber_mm', 'core_diameter_mm', 'mass_kg', 'muzzle_velocity_ms',
-             'explosive_mass_g', 'fuze_delay_ms', 'core_mass_kg', 'cd')
-
+NUMERICOS = ('caliber_mm', 'core_diameter_mm', 'mass_kg', 'muzzle_velocity_ms', 'explosive_mass_g', 'fuze_delay_ms', 'core_mass_kg', 'cd')
 
 def _num(s):
-    """Celda a float, o None si esta vacia. Acepta coma decimal."""
+    #Transformar decimales (, -> .)
     raw = (s or '').strip()
     return float(raw.replace(',', '.')) if raw else None
-
 
 def _filas(folder, nombre):
     with open(os.path.join(folder, nombre), newline='', encoding='utf-8') as f:
         return list(csv.DictReader(f))
-
 
 class BallisticData:
     def __init__(self, folder):
@@ -32,9 +23,8 @@ class BallisticData:
             for k in NUMERICOS:
                 r[k] = _num(r.get(k))
             if r['type'] == 'APCR' and (r['core_mass_kg'] is None or r['core_diameter_mm'] is None):
-                # Sin nucleo, el APCR caeria al proyectil entero y el tapon de §3.5 saldria x7.
                 raise ValueError(f"{r['shell_id']}: APCR sin core_mass_kg o core_diameter_mm")
-            # Penetrador (§2.1): el nucleo en el APCR, el proyectil entero en el resto.
+            #El nucleo en el APCR/sabot, el proyectil entero en el resto.
             r['penetrating_mass_kg'] = r['core_mass_kg'] or r['mass_kg']
             r['penetrating_diameter_mm'] = r['core_diameter_mm'] or r['caliber_mm']
             self.projectiles[r['shell_id']] = r
@@ -44,8 +34,8 @@ class BallisticData:
             r['resistance'], r['spall'] = _num(r['resistance']), _num(r['spall'])
             self.materials[r['id']] = r
 
-        self.table = {}        # shell_id -> {angulo: {distancia: mm}}
-        self.basis = {}        # shell_id -> 'nominal' o 'los'
+        self.table = {}        #shell_id -> {angulo: {distancia: mm}}
+        self.basis = {}        #shell_id -> 'nominal' o 'los'
         for r in _filas(folder, 'penetration.csv'):
             mm = _num(r['penetration_mm'])
             if mm is None:
@@ -136,22 +126,22 @@ def selftest():
         except ValueError:
             pass
 
-    # Interpolacion: en distancia, en angulo y en las dos a la vez.
+    #Interpolacion en distancia, en angulo, y en las dos a la vez.
     assert bd.nominal('T', 0, 0) == (100.0, False)
     assert bd.nominal('T', 500, 0)[0] == 75.0
     assert bd.nominal('T', 0, 30)[0] == 90.0
     assert bd.nominal('T', 500, 60)[0] == 60.0
-    assert bd.nominal('T', 2000, 0) == (0.0, True)            # fuera de rango, marcado
+    assert bd.nominal('T', 2000, 0) == (0.0, True)
     assert bd.nominal('NOEXISTE', 0, 0) == (None, False)
-    # LOS: 80 mm nominales a 60 grados son 160 mm de camino.
+    #LOS: 80 mm nominales a 60 grados son 160 mm de camino.
     assert abs(bd.los('T', 0, 60)[0] - 160.0) < 1e-9
-    # Velocidad: tabulada, interpolada, extrapolada y recortada.
+    #Velocidad tabulada, interpolada, extrapolada y recortada.
     assert bd.velocity('T', 500) == (700.0, False)
     assert bd.velocity('T', 2500)[1] is True
     assert bd.velocity('T', 9000) == (400.0, True)
     assert bd.velocity('NOEXISTE', 0) == (None, False)
     assert abs(bd.impact_energy('T', 0)[0] - 0.5 * 6.0 * 800.0 ** 2) < 1e-6
-    # APCR: penetra el nucleo; el calibre se queda para cd y el rebote.
+    #APCR penetra el nucleo
     a = bd.projectiles['A']
     assert (a['penetrating_mass_kg'], a['penetrating_diameter_mm'], a['caliber_mm']) == (0.85, 28.0, 75.0)
     assert bd.projectiles['T']['penetrating_diameter_mm'] == 75.0
