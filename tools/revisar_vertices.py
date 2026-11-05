@@ -1,8 +1,7 @@
 """Busca vertices sobrantes y agujeros de malla en todo el modelo.
 
 NO MODIFICA NADA. Solo informa, y dice que operador de Blender arregla cada
-cosa. Arreglar a mano dos objetos es mas rapido y mas seguro que dejar que un
-script toque 169.
+cosa.
 
 POR QUE SE BORRA UNA CARA AL ELIMINAR EL VERTICE
 ------------------------------------------------
