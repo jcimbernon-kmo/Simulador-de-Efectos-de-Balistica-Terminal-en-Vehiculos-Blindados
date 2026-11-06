@@ -20,3 +20,4 @@ tools/*
 # disparo.py es el modelo balistico ejecutable, y su autoprueba cubre la
 # regresion de §8 que antes vivia en raycast_test.py (29/10/2026).
 !tools/disparo.py
+docs/estado_completo.md
