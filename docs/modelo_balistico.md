@@ -46,20 +46,12 @@ Datos fuera del código, todo sale de los ficheros de data/ y del modelo glb:
 | cd | — | coeficiente de arrastre, si no hay fila en velocity.csv (§2.2.1) |
 | source_id | — | clave en data/sources.md |
 
-Magnitudes: kg, m, m/s, J, y mm únicamente para espesores y calibres, por ser la convención de las fuentes.
+El APCR (y sabot) es un cuerpo de 75 mm que lleva dentro un núcleo. Así que hay dos pares de columnas y el cargador deriva de cada par el valor que usa la física:
 
-El APCR (y sabot) es un cuerpo de 75 mm que lleva dentro un núcleo de carburo de tungsteno, lo que perfora es el núcleo. Así que hay dos pares de columnas y el cargador deriva de cada par el valor que usa la física:
+`penetrating_mass_kg     = core_mass_kg     o mass_kg     si está vacía` <br>
+`penetrating_diameter_mm = core_diameter_mm o caliber_mm  si está vacía`
 
-penetrating_mass_kg     = core_mass_kg     o mass_kg     si está vacía <br>
-penetrating_diameter_mm = core_diameter_mm o caliber_mm  si está vacía
-
-Lo que cuesta confundirlos: contra la placa frontal de 80 mm, usar 75 mm en vez de 28 multiplica
-la masa de tapón de §3.5 por (75/28)² = 7,2, y la fracción de astillado del PzGr. 40 pasa de 0,313
-a 0,765. El número equivocado sale plausible, que es lo que lo hace peligroso, así que
-disparo.py saca el diámetro del propio proyectil (penetrating_diameter_mm) en vez de dejarlo a
-elección de quien llama, y ballistic_data.py se niega a cargar un APCR sin core_diameter_mm.
-
-[S] El core_diameter_mm del PzGr. 40, 28 mm, no está localizado en ninguna fuente: la ficha del KwK 40 da masa, velocidad y penetración pero no toca el núcleo. Se deriva de core_mass_kg = 0,85 kg con carburo de tungsteno a ~15 000 kg/m³ suponiendo un núcleo cilíndrico, lo que da 27-31 mm según la esbeltez que se adopte (L/d de 3,5 a 2,5); 28 mm corresponde a L/d ≈ 3,3. Lo supuesto es la esbeltez, no el diámetro. Pendiente de fuente en §10.
+[S] El core_diameter_mm del PzGr. 40, 28 mm.
 
 ### 2.2 Tabla de penetración - data/penetration.csv
 
