@@ -13,7 +13,7 @@ El espesor atravesado se mide en la geometría, no en las propiedades. Para cada
 
 **Thickness_mm** se conserva en cada placa para validar que la geometría coincide, relación espesor/calibre en la fragmentación, y como respaldo. **No se usa para calcular la penetración.**
 
-Un hueco hace atravesar menos acero del real, el validador del modelo glb es parte del núcleo y no un extra.
+Un hueco hace atravesar menos acero del real.
 
 Tras perforar, el núcleo y todos los fragmentos se reparten la energía residual, la suma nunca puede superarla.
 
