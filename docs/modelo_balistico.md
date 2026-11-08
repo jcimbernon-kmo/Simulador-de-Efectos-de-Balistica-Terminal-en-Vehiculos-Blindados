@@ -88,12 +88,11 @@ El PzGr. 39 coincide con el valor teórico de De Marre, 1,4283, que no intervien
 Si un proyectil cinético no tiene al menos dos distancias con penetración a 0° y velocidad, el cálculo da error en vez de usar un valor por defecto. El HEAT no lo necesita.
 
 El cargador resuelve la velocidad a una distancia en este orden:
-
 1. Interpolación de velocity.csv, el caso normal.
 2. Si el proyectil no tiene filas, v₀·e^{-Kx} con el cd de shells.csv, marcado como estimado.
 3. Si tampoco hay cd, error.
 
-Para un proyectil nuevo basta un punto publicado de velocidad restante para despejar su Cd; con tres o más, pasa a velocity.csv.
+Para un proyectil nuevo basta un punto publicado de velocidad restante para despejar su Cd, con 3 o más, pasa a velocity.csv.
 
 ### 2.3 Materiales - data/materials.csv
 
