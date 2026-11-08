@@ -23,6 +23,7 @@
 - Reglas de fuera de combate del vehiculo.
 - Fuente documentada para cada dato de las tablas (`data/sources.md`).
 - Validación contra datos independientes de las tablas de entrada.
+- Explicar por qué el PzGr. 40 no sigue la ley de De Marre (su exponente baja de 0,98 a 0,74 con la distancia).
 - Ajustar la resistencia de las ruedas de rodaje.
 
 ## Valores provisionales

@@ -111,16 +111,18 @@ del modelo y aplicando solo gravedad, la caída sale con un −1 % de error a 50
 y +9 % a 2000. La desviación a larga distancia es esperable, porque ese cálculo supone
 trayectoria plana.
 
-El exponente de De Marre, cruzando las velocidades reales con la tabla de penetración se obtiene el exponente de P ∝ vⁿ:
+El exponente de De Marre, P ∝ vⁿ, se mide cruzando las velocidades reales con la tabla de penetración a 0°, tramo a tramo de distancia. ballistic_data.exponente() lo calcula así para cada proyectil, y disparo.py usa el del tramo que contiene la distancia del disparo:
 
-| Distancia | n medido |
-|---|---|
-| 500 m | 1,4082 |
-| 1000 m | 1,4383 |
-| 1500 m | 1,4288 |
-| 2000 m | 1,4361 |
+| Tramo | PzGr. 39 | PzGr. 40 |
+|---|---|---|
+| 100-500 m | 1,415 | 0,983 |
+| 500-1000 m | 1,457 | 0,942 |
+| 1000-1500 m | 1,395 | 0,878 |
+| 1500-2000 m | 1,406 | 0,744 |
 
-Media 1,428, frente al valor teórico de De Marre de 1,4283, coinciden con una relación teórica que no interviene en la elaboración de ninguno de los 2, y justifica usar n = 1,428 en §3.4.1.
+El PzGr. 39 coincide con el valor teórico de De Marre, 1,4283, una relación teórica que no interviene en la elaboración de ninguno de los dos conjuntos de datos. El PzGr. 40 no: su exponente es menor y baja con la distancia, así que su tabla no sigue una ley de potencia única. Por eso el exponente no es un parámetro global sino una medida por proyectil y por tramo. [A] Falta saber por qué el APCR se separa de De Marre: si es física del núcleo o cómo se construyó la tabla de la fuente.
+
+Si un proyectil cinético no tiene al menos dos distancias con penetración a 0° y velocidad, el cálculo da error en vez de usar un valor por defecto. El Gr. 38 Hl/C no lo necesita, porque la penetración de la carga hueca no depende de la velocidad (§5).
 
 El cargador resuelve la velocidad a una distancia así, y en este orden:
 
@@ -234,7 +236,7 @@ La cadena de perforación se lleva en capacidad, no en velocidad. Lo que necesit
 
 P_residual = (P_impacto^(2/n) − t_equivalente^(2/n))^(n/2)
 
-con n = 1,428 de §2.2.1. El proyectil llega con la capacidad que da la tabla, la capa le consume su espesor equivalente, y el resto va contra la siguiente, sin velocidades de por medio.
+con n el exponente de De Marre del proyectil en el tramo de distancia del disparo (§2.2.1). El proyectil llega con la capacidad que da la tabla, la capa le consume su espesor equivalente, y el resto va contra la siguiente, sin velocidades de por medio.
 
 La velocidad sigue haciendo falta para 2 cosas, y solo 2: la energía de núcleo y fragmentos (½mv², §3.7) y el recorrido de la espoleta del APHE (§4). Las dos toleran más error que la perforación.
 
@@ -317,7 +319,7 @@ Fragmentos, versión provisional (04/11). Solo el astillado de la placa: el proy
 * Daña con las mismas reglas que el núcleo (§3.7.1). Como núcleo y fragmentos pueden tocar el mismo módulo, la salud se aplica al final, ordenando todos los eventos por tiempo.
 * Un fragmento no genera fragmentos al atravesar una placa, no rebota y no se rompe.
 
-Lo que da en el disparo de referencia, PzGr. 39 a 100 m contra el frontal: 562 fragmentos de 5 g y 455 J del frontal, 69 del mamparo y 141 de la placa trasera. Con ellos quedan fuera cuatro de los cinco tripulantes y 18 cartuchos, frente a dos tripulantes y cuatro cartuchos con el núcleo solo. El resultado depende mucho de la masa del fragmento y del cono (§6): con menos fragmentos y más grandes, el daño se concentra en menos objetos.
+Lo que da en el disparo de referencia, PzGr. 39 a 100 m contra el frontal: 562 fragmentos de 5 g y 458 J del frontal, 69 del mamparo y 141 de la placa trasera. Con ellos quedan fuera cuatro de los cinco tripulantes y 18 cartuchos, frente a dos tripulantes y cuatro cartuchos con el núcleo solo. El resultado depende mucho de la masa del fragmento y del cono (§6): con menos fragmentos y más grandes, el daño se concentra en menos objetos.
 
 Rendimiento: un rayo por fragmento, unos 5 ms por rayo en Python y unos 4 s por disparo. Un barrido masivo necesitaría rayos representativos con peso.
 
@@ -554,7 +556,7 @@ Instantes derivados del camino, t += camino / v_media_del_tramo, con las velocid
 
 ### 7.2 Reproducción
 
-Tiempo no uniforme, en tres fases. En el disparo de referencia (PzGr. 39 a 100 m contra el frontal, disparo.py sin argumentos) el núcleo tarda 13,0 ms desde el primer contacto hasta salir por la placa trasera, y perforar el frontal le lleva 139 µs, el 1,1 % del total. Un frame a 60 fps son 16,7 ms, así que el disparo entero ocurre dentro de un solo frame. Con una escala única, o la perforación es invisible o el interior es interminable:
+Tiempo no uniforme, en tres fases. En el disparo de referencia (PzGr. 39 a 100 m contra el frontal, disparo.py sin argumentos) el núcleo tarda 12,8 ms desde el primer contacto hasta salir por la placa trasera, y perforar el frontal le lleva 139 µs, el 1,1 % del total. Un frame a 60 fps son 16,7 ms, así que el disparo entero ocurre dentro de un solo frame. Con una escala única, o la perforación es invisible o el interior es interminable:
 
 | Fase | Duración real | En pantalla | Factor |
 |---|---|---|---|
@@ -610,7 +612,7 @@ Barrido de coherencia, 1416 disparos: dos proyectiles, cuatro distancias, cuatro
 
 Para que haya validación hacen falta datos independientes de los que alimentan el modelo. La vía más practicable aprovecha la columna criterion de §2.2: alemanes, británicos y estadounidenses midieron el mismo cañón con criterios de penetración distintos. Si el modelo, alimentado con la tabla alemana, reproduce las mediciones aliadas del KwK 40 dentro de un margen declarado, eso ya no es circular. Localizar esas mediciones es tarea abierta y es la pregunta que va a hacer el tribunal.
 
-El resultado de §2.2.1 sobre el exponente de De Marre sí es validación real, y conviene presentarlo como tal: dos conjuntos de datos históricos independientes coinciden con una relación teórica que no interviene en la elaboración de ninguno de los dos. El contraste de σ_RHA entre los dos proyectiles de §3.7 es del mismo tipo, con la reserva del diámetro del núcleo.
+El resultado de §2.2.1 sobre el exponente de De Marre es validación real para el PzGr. 39, y conviene presentarlo como tal: dos conjuntos de datos históricos independientes coinciden con una relación teórica que no interviene en la elaboración de ninguno de los dos. Para el PzGr. 40 la misma comprobación falla, y también hay que presentarlo: por eso el modelo no supone De Marre, sino que mide el exponente en los datos de cada proyectil. El contraste de σ_RHA entre los dos proyectiles de §3.7 es del mismo tipo, con la reserva del diámetro del núcleo.
 
 ## 9. Limitaciones declaradas
 
@@ -651,6 +653,7 @@ Modelo y código
 * [ ] Implementar el rebote de §3.3.
 * [ ] Dar fuente a la masa de fragmento (5 g) y al cono (30°) de §3.6 con datos de behind-armour debris, y pasar a una distribución de tamaños de Mott.
 * [ ] Dar fuente a sigma_fragmento (§3.7, §6), hoy 3,10 GPa provisional.
+* [ ] [A] Explicar por qué el exponente de De Marre del PzGr. 40 baja de 0,98 a 0,74 con la distancia (§2.2.1).
 * [ ] Recalibrar el Health de Engine y Transmission (§3.7.1). Los 300 y 150 kJ se fijaron con la ley lineal de σ_RHA, que ya no se usa.
 * [ ] Capa compuesta con placas de orientación distinta. §3.2 suma los caminos, pero la tabla de §3.4 se consulta con un ángulo y disparo.py usa el de la primera placa. Caso real, ARM_Front_Track_Addon_Upper a 70° delante de ARM_Middle_Front_Plate.
 * [ ] Decidir cuál de los dos eventos lleva la energía cuando un módulo detiene al proyectil, module_hit o stopped (§7.1).

@@ -33,10 +33,10 @@ ORIGEN, DIRECCION = (0.50, -2.00, 1.30), (0.0, 1.0, 0.0)
 def cargar_parametros(folder):
     path = os.path.join(folder, 'parametros.csv')
     if not os.path.exists(path):
-        raise FileNotFoundError(f"falta {path} (n_de_marre, contact_gap_mm, rho_acero)")
+        raise FileNotFoundError(f"falta {path} (contact_gap_mm, rho_acero)")
     with open(path, newline='', encoding='utf-8') as f:
         par = {r['key'].strip(): B._num(r['value']) for r in csv.DictReader(f)}
-    for k in ('n_de_marre', 'contact_gap_mm', 'rho_acero'):
+    for k in ('contact_gap_mm', 'rho_acero'):
         if par.get(k) is None:
             raise ValueError(f"{path}: falta la clave '{k}'")
     return par
@@ -132,7 +132,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
         raise ValueError(f"{pid}: tipo {p['type']} no soportado (solo {CINETICOS})")
     m, dmm = p['penetrating_mass_kg'], p['penetrating_diameter_mm']
     area = math.pi / 4.0 * (dmm / 1000.0) ** 2
-    n = par['n_de_marre']
+    n = bd.exponente(pid, distancia_m)   #De Marre medido en las tablas de este proyectil
     q = 2.0 / n
     v0, _ = bd.velocity(pid, distancia_m)
     E = 0.5 * m * v0 * v0
@@ -525,7 +525,7 @@ def _prueba():
         w('materials.csv', "id,resistance,spall\nRHA,1.0,1.0\nSteel,0.6,1.0\nFlesh,0.01,0.0\n"
           "Cast_Iron,0.3,1.5\nAmmo,0.2,0.0\n")
         w('velocity.csv', "shell_id,distance_m,velocity_ms\nT,0,750\nT,100,738\nT,1000,636\n")
-        w('parametros.csv', "key,value,unit,source\nn_de_marre,1.428,,x\ncontact_gap_mm,1.0,mm,x\n"
+        w('parametros.csv', "key,value,unit,source\ncontact_gap_mm,1.0,mm,x\n"
           "rho_acero,7850,kg/m3,x\nmasa_fragmento_g,5,g,x\ncono_fragmentos_deg,30,deg,x\n"
           "sigma_fragmento_GPa,3.10,GPa,x\nenergia_minima_fragmento_J,1,J,x\n")
         bd, par = B.BallisticData(dd), cargar_parametros(dd)

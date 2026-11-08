@@ -94,6 +94,26 @@ class BallisticData:
             return pares[-1][1], True
         return v, ext
 
+    def exponente(self, pid, distance_m):
+        """Exponente de De Marre, P proporcional a v^n, medido en las tablas del propio
+        proyectil: tramo a 0 grados que contiene distance_m (fuera de rango, el tramo
+        extremo). Error si no hay dos distancias con penetracion y velocidad, o si la
+        velocidad o la penetracion no cambian en el tramo."""
+        filas = sorted((d, mm) for d, mm in (self.table.get(pid) or {}).get(0.0, {}).items()
+                       if self.velocity(pid, d)[0] is not None)
+        if len(filas) < 2:
+            raise ValueError(f"{pid}: el exponente de De Marre necesita dos distancias con "
+                             f"penetracion a 0 grados y velocidad")
+        i = 1
+        while i < len(filas) - 1 and distance_m > filas[i][0]:
+            i += 1
+        (d0, p0), (d1, p1) = filas[i - 1], filas[i]
+        v0, v1 = self.velocity(pid, d0)[0], self.velocity(pid, d1)[0]
+        if v0 == v1 or p0 == p1:
+            raise ValueError(f"{pid}: entre {d0:g} y {d1:g} m no cambia la velocidad o la "
+                             f"penetracion; no se puede medir el exponente de De Marre")
+        return math.log(p0 / p1) / math.log(v0 / v1)
+
     def impact_energy(self, pid, distance_m):
         """Energia cinetica del penetrador al impactar (§3.5). Devuelve (J, extrapolado)."""
         v, ext = self.velocity(pid, distance_m)
@@ -118,6 +138,10 @@ def selftest():
                              "T,0,60,80,RHA,normal,nominal,complete\nT,1000,60,40,RHA,normal,nominal,complete\n")
         w('velocity.csv', "shell_id,distance_m,velocity_ms\nT,0,800\nT,1000,600\nT,2000,400\n")
         bd = BallisticData(d)
+        w('penetration.csv', "shell_id,distance_m,angle_deg,penetration_mm,armour_type,"
+                             "angle_from,thickness_basis,criterion\n"
+                             "T,0,0,100,RHA,normal,nominal,complete\nT,1000,0,100,RHA,normal,nominal,complete\n")
+        plano = BallisticData(d)                         # penetracion constante en el tramo
         w('shells.csv', "shell_id,name,type,caliber_mm,core_diameter_mm,mass_kg,muzzle_velocity_ms,"
                         "explosive_mass_g,fuze_delay_ms,core_mass_kg,cd\nX,X,APCR,75,,4.1,930,0,,,0.6\n")
         try:
@@ -145,6 +169,16 @@ def selftest():
     a = bd.projectiles['A']
     assert (a['penetrating_mass_kg'], a['penetrating_diameter_mm'], a['caliber_mm']) == (0.85, 28.0, 75.0)
     assert bd.projectiles['T']['penetrating_diameter_mm'] == 75.0
+    #Exponente de De Marre por tramo: 100 -> 50 mm mientras v pasa de 800 a 600 m/s.
+    n = math.log(100 / 50) / math.log(800 / 600)
+    assert abs(bd.exponente('T', 500) - n) < 1e-12
+    assert abs(bd.exponente('T', 5000) - n) < 1e-12      # fuera de rango: tramo extremo
+    for pid, datos in (('A', bd), ('T', plano)):         # sin tabla / tramo sin cambio
+        try:
+            datos.exponente(pid, 500)
+            raise AssertionError(f'{pid}: el exponente tenia que fallar')
+        except ValueError:
+            pass
     print('selftest OK')
 
 
@@ -157,6 +191,14 @@ if __name__ == '__main__':
     for pid, por_angulo in bd.table.items():
         print(f"  {pid}: {sum(len(v) for v in por_angulo.values())} valores, "
               f"angulos {sorted(por_angulo)}")
+    print("\nExponente de De Marre por tramo de distancia (P proporcional a v^n):")
+    for pid, por_angulo in bd.table.items():
+        ds = sorted(por_angulo.get(0.0, {}))
+        try:
+            print(f"  {pid:16s}" + '  '.join(f"{a:g}-{b:g} m: {bd.exponente(pid, (a + b) / 2):.3f}"
+                                         for a, b in zip(ds, ds[1:])))
+        except ValueError as e:
+            print(f"  {pid:16s}no aplica ({e})")
     print("\nVelocidad y energia de impacto del penetrador:")
     print(f"  {'proyectil':16s}" + ''.join(f"{d:>14d} m" for d in (0, 500, 1000, 2000)))
     for pid in sorted(bd.velocities):
