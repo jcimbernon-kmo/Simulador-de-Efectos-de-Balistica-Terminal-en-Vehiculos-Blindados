@@ -7,11 +7,10 @@ Simulador 3D para PC que calcula un impacto de proyectil contra un vehículo bli
 | Ruta | Contenido |
 |---|---|
 | `docs/modelo_balistico.md` | Modelo de calculo: trayectoria del rayo, penetración, energia, daño a modulos y formato de la linea temporal. Es la referencia de lo que implementa el codigo |
-| `docs/estado.md` | Qué funciona, qué falta y qué se ha decidido |
+| `docs/estado.md` | Qué funciona y qué falta |
 | `data/` | Tablas de entrada: proyectiles, penetracion, velocidad, materiales y parametros |
 | `models/` | Modelos 3D |
 | `tools/` | Nucleo de calculo y herramientas de comprobacion |
-| `tfg.md` | Decisiones generales del proyecto |
 | `src/` | Simulador con motor grafico. |
 
 ## Herramientas
