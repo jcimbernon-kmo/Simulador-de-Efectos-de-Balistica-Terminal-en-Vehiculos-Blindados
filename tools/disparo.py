@@ -137,6 +137,9 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
     v0, _ = bd.velocity(pid, distancia_m)
     E = 0.5 * m * v0 * v0
     sigma = sigma_rha(bd, pid, area)
+    cono = par.get(f"cono_fragmentos_{p['type']}_deg")   #Semiangulo del cono segun el tipo
+    if cono is None:
+        raise ValueError(f"parametros.csv: falta la clave 'cono_fragmentos_{p['type']}_deg' (§3.6)")
     salud0 = {nm: float(pr['Health']) for nm, _, pr in objs if 'Module_Type' in pr}
     eventos_fragmentos, ids = [], [0]
     aviso = []
@@ -293,7 +296,7 @@ def disparar(objs, bd, par, pid, distancia_m, origen, direccion):
             if m_tap > 0.0 and e_tapon > 0.0: #El tapon se rompe
                 eventos_fragmentos.extend(fragmentos(
                     objs, bd, par, _punto(origen, d, ultima['t_out']), d, lin.t,
-                    m_tap, e_tapon, ultima, semilla, ids))
+                    m_tap, e_tapon, ultima, semilla, ids, cono))
             E, acum = e_nucleo, acum + Tp
 
     if not parado:
@@ -339,12 +342,12 @@ def _cono(d, semi_rad, rng):
                         for i in range(3)))
 
 
-def fragmentos(objs, bd, par, p0, d, t0, m_tap, e_tapon, placa, semilla, ids):
+def fragmentos(objs, bd, par, p0, d, t0, m_tap, e_tapon, placa, semilla, ids, cono_deg):
     """§3.6: el tapon se rompe en N fragmentos iguales que salen a la velocidad del
     nucleo dentro de un cono, repartiendose e_tapon. Cada fragmento es un rayo que
     pierde E por recorrido (§3.7) y dana modulos con las reglas de §3.7.1.
     Sin fragmentos secundarios, sin rebote y sin rotura del proyectil (§9)."""
-    for k in ('masa_fragmento_g', 'cono_fragmentos_deg', 'sigma_fragmento_GPa', 'rho_acero',
+    for k in ('masa_fragmento_g', 'sigma_fragmento_GPa', 'rho_acero',
               'energia_minima_fragmento_J'):
         if par.get(k) is None:
             raise ValueError(f"parametros.csv: falta la clave '{k}' (§3.6)")
@@ -362,7 +365,7 @@ def fragmentos(objs, bd, par, p0, d, t0, m_tap, e_tapon, placa, semilla, ids):
     #Un rayo por fragmento, unos 5 ms por rayo en Python Si un barrido lo necesita: rayos representativos con peso.
     for _ in range(n_frag):
         ids[0] += 1
-        u = _cono(d, math.radians(par['cono_fragmentos_deg']), rng)
+        u = _cono(d, math.radians(cono_deg), rng)
         o = tuple(p0[i] + u[i] * 1e-5 for i in range(3))
         E = e_f
         lin = Linea(0.0, math.sqrt(2.0 * E / m_f), t0, ids[0], padre)
@@ -526,7 +529,7 @@ def _prueba():
           "Cast_Iron,0.3,1.5\nAmmo,0.2,0.0\n")
         w('velocity.csv', "shell_id,distance_m,velocity_ms\nT,0,750\nT,100,738\nT,1000,636\n")
         w('parametros.csv', "key,value,unit,source\ncontact_gap_mm,1.0,mm,x\n"
-          "rho_acero,7850,kg/m3,x\nmasa_fragmento_g,5,g,x\ncono_fragmentos_deg,30,deg,x\n"
+          "rho_acero,7850,kg/m3,x\nmasa_fragmento_g,5,g,x\ncono_fragmentos_AP_deg,30,deg,x\n"
           "sigma_fragmento_GPa,3.10,GPa,x\nenergia_minima_fragmento_J,1,J,x\n")
         bd, par = B.BallisticData(dd), cargar_parametros(dd)
 

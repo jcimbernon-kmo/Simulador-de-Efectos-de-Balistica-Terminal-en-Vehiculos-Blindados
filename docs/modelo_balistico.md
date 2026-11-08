@@ -314,7 +314,7 @@ Fragmentos, versión provisional (04/11). Solo el astillado de la placa: el proy
 
 * N = m_tapón / masa_fragmento, redondeado, con masa_fragmento = 5 g [S]. Todos de la misma masa, m_tapón / N; todavía sin distribución de Mott.
 * Salen del punto de salida de la capa a la misma velocidad que el núcleo, como dice §3.5, así que se reparten E_astillado a partes iguales: E_fragmento = E_astillado / N. La suma es exacta y el presupuesto de §1 sigue cerrado.
-* Dirección al azar, uniforme en ángulo sólido, dentro de un cono de semiángulo 30° [S] alrededor de la dirección del núcleo, con la semilla del disparo (§1).
+* Dirección al azar, uniforme en ángulo sólido, dentro de un cono alrededor de la dirección del núcleo cuyo semiángulo depende del tipo de proyectil (`cono_fragmentos_<tipo>_deg`; de momento 30° [S] en APCBC-HE y APCR), con la semilla del disparo (§1).
 * Cada fragmento es un rayo con la ley de pérdida por recorrido de §3.7 y el diámetro de una esfera de acero de su masa, d = (6m / (π·ρ))^(1/3), 10,7 mm para 5 g. Se da por detenido cuando le quedaría menos de 1 J [S], que no supera ningún umbral ni deposita nada apreciable.
 * Daña con las mismas reglas que el núcleo (§3.7.1). Como núcleo y fragmentos pueden tocar el mismo módulo, la salud se aplica al final, ordenando todos los eventos por tiempo.
 * Un fragmento no genera fragmentos al atravesar una placa, no rebota y no se rompe.
@@ -500,7 +500,7 @@ Los que no dependen del proyectil van en data/parametros.csv como pares clave-va
 | Parámetro | Depende de | Qué controla |
 |---|---|---|
 | masa_fragmento_g | — | masa de cada fragmento; fija cuántos salen, N = m_tapón / masa. [S] 5 g provisional (§3.6) |
-| cono_fragmentos_deg | tipo | cuánto se abre la metralla. [S] 30° provisional, el mismo para todos los tipos |
+| cono_fragmentos_<tipo>_deg | tipo | semiángulo del cono de fragmentos, uno por tipo de proyectil (falta la clave → error). [S] 30° provisional en APCBC-HE y APCR, falta el valor propio del APCR |
 | ricochet_angle | tipo, calibre/espesor | umbral de rebote |
 | sigma_fragmento_GPa | — | pérdida de energía por recorrido, solo de los fragmentos (§3.7). [S] 3,10 GPa, el valor del núcleo como aproximación declarada |
 | energia_minima_fragmento_J | — | por debajo, el fragmento se da por detenido (§3.6). [S] 1 J |

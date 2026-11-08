@@ -29,7 +29,7 @@
 ## Valores provisionales
 
 Hasta que tenga fuentes:
-- Fragmentos: 5 g cada uno, cono de 30° y resistencia de 3,10 GPa.
+- Fragmentos: 5 g cada uno, cono de 30° (una clave por tipo de proyectil; falta el valor del APCR) y resistencia de 3,10 GPa.
 - Umbral de incapacitación de un tripulante, 80 J.
 - Salud de los módulos motor, transmisión, cañón, orugas, munición, depósito.
 

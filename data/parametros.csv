@@ -2,6 +2,7 @@ key,value,unit,source
 contact_gap_mm,"1,0",mm
 rho_acero,7850,kg/m3
 masa_fragmento_g,5,g
-cono_fragmentos_deg,30,deg
+cono_fragmentos_APCBC-HE_deg,30,deg
+cono_fragmentos_APCR_deg,30,deg
 sigma_fragmento_GPa,"3,10",GPa
 energia_minima_fragmento_J,1,J
