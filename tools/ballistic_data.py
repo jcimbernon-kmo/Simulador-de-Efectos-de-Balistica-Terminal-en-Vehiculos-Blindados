@@ -54,8 +54,7 @@ class BallisticData:
 
     @staticmethod
     def _interp(pares, x):
-        """Interpola en [(x, y)] ordenada, extrapolando con el tramo extremo.
-        Devuelve (y, extrapolado)."""
+        #Interpola en [(x, y)] ordenada, extrapolando con el tramo extremo. Devuelve (y, extrapolado).
         if not pares:
             return None, False
         if len(pares) == 1:
@@ -67,8 +66,7 @@ class BallisticData:
         return y0 + (y1 - y0) * (x - x0) / (x1 - x0), not pares[0][0] <= x <= pares[-1][0]
 
     def nominal(self, pid, distance_m, angle_deg):
-        """mm nominales perforables: primero en distancia, luego en angulo.
-        Devuelve (mm, extrapolado) o (None, False)."""
+        #mm nominales perforables: primero en distancia, luego en angulo. Devuelve (mm, extrapolado) o (None, False).
         por_angulo = self.table.get(pid)
         if not por_angulo:
             return None, False
@@ -78,16 +76,14 @@ class BallisticData:
         return mm, ext or any(e for _, _, e in filas)
 
     def los(self, pid, distance_m, angle_deg):
-        """Capacidad en linea de vision, que es contra lo que se compara el camino
-        medido en la malla. Devuelve (mm, extrapolado)."""
+        #Capacidad en linea de vision. Devuelve (mm, extrapolado).
         mm, ext = self.nominal(pid, distance_m, angle_deg)
         if mm is None or self.basis.get(pid) == 'los':
             return mm, ext
         return mm / math.cos(math.radians(angle_deg)), ext
 
     def velocity(self, pid, distance_m):
-        """Velocidad de impacto. Devuelve (v, extrapolado). Pasada la tabla se
-        recorta al ultimo valor: la recta llegaria a dar velocidades negativas."""
+        #Velocidad de impacto. Devuelve (v, extrapolado). Pasada la tabla se recorta al ultimo valor: la recta llegaria a dar velocidades negativas.
         pares = self.velocities.get(pid)
         v, ext = self._interp(pares, distance_m)
         if v is not None and v <= 0.0:
@@ -95,10 +91,7 @@ class BallisticData:
         return v, ext
 
     def exponente(self, pid, distance_m):
-        """Exponente de De Marre, P proporcional a v^n, medido en las tablas del propio
-        proyectil: tramo a 0 grados que contiene distance_m (fuera de rango, el tramo
-        extremo). Error si no hay dos distancias con penetracion y velocidad, o si la
-        velocidad o la penetracion no cambian en el tramo."""
+        #Exponente de De Marre, P proporcional a v^n, medido en las tablas del propio proyectil: tramo a 0 grados que contiene distance_m (fuera de rango, el tramo extremo). Error si no hay dos distancias con penetracion y velocidad, o si la velocidad o la penetracion no cambian en el tramo."""
         filas = sorted((d, mm) for d, mm in (self.table.get(pid) or {}).get(0.0, {}).items()
                        if self.velocity(pid, d)[0] is not None)
         if len(filas) < 2:
@@ -115,7 +108,7 @@ class BallisticData:
         return math.log(p0 / p1) / math.log(v0 / v1)
 
     def impact_energy(self, pid, distance_m):
-        """Energia cinetica del penetrador al impactar (§3.5). Devuelve (J, extrapolado)."""
+        #Energia cinetica del penetrador al impactar (§3.5). Devuelve (J, extrapolado).
         v, ext = self.velocity(pid, distance_m)
         m = (self.projectiles.get(pid) or {}).get('penetrating_mass_kg')
         if v is None or m is None:
@@ -141,7 +134,7 @@ def selftest():
         w('penetration.csv', "shell_id,distance_m,angle_deg,penetration_mm,armour_type,"
                              "angle_from,thickness_basis,criterion\n"
                              "T,0,0,100,RHA,normal,nominal,complete\nT,1000,0,100,RHA,normal,nominal,complete\n")
-        plano = BallisticData(d)                         # penetracion constante en el tramo
+        plano = BallisticData(d)                         #penetracion constante en el tramo
         w('shells.csv', "shell_id,name,type,caliber_mm,core_diameter_mm,mass_kg,muzzle_velocity_ms,"
                         "explosive_mass_g,fuze_delay_ms,core_mass_kg,cd\nX,X,APCR,75,,4.1,930,0,,,0.6\n")
         try:
